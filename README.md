@@ -60,4 +60,4 @@ Releases are built automatically. Every push to `main` that changes the code run
 `release.sh` is a manual fallback that builds and publishes from your own Mac (needs `gh auth login`).
 
 ## Known gaps
-No arrow-key navigation in the suggestions list, no favicons, no JavaScript alert/permission dialogs, no extensions, popups open as tabs, bookmarks aren't per-space, and each new window reloads your pinned tabs.
+No arrow-key navigation in the suggestions list, no favicons, no JavaScript alert/permission dialogs, no extensions, bookmarks aren't per-space, and each new window reloads your pinned tabs.

@@ -31,9 +31,33 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
 
     private var observations: [NSKeyValueObservation] = []
 
-    init(url: URL? = nil, dataStore: WKWebsiteDataStore = .default(), spaceID: UUID, loadNow: Bool = true) {
+    /// Called when a page opens a popup (window.open). Must return a tab built from the given configuration.
+    var onCreatePopup: ((WKWebViewConfiguration) -> Tab?)?
+    /// Called when the page closes itself (window.close), e.g. after a sign-in popup finishes.
+    var onClose: (() -> Void)?
+
+    /// Safari-like identity, because sites such as Google refuse sign-in from unknown embedded browsers.
+    static func makeConfiguration(dataStore: WKWebsiteDataStore) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = dataStore // .default() persists, .nonPersistent() is private
+        config.applicationNameForUserAgent = "Version/17.5 Safari/605.1.15"
+        return config
+    }
+
+    convenience init(url: URL? = nil, dataStore: WKWebsiteDataStore = .default(), spaceID: UUID, loadNow: Bool = true) {
+        self.init(configuration: Tab.makeConfiguration(dataStore: dataStore), spaceID: spaceID)
+        if let url {
+            if loadNow {
+                webView.load(URLRequest(url: url))
+            } else {
+                pendingURL = url
+                self.url = url
+                title = url.host ?? "New Tab"
+            }
+        }
+    }
+
+    init(configuration config: WKWebViewConfiguration, spaceID: UUID) {
         webView = WKWebView(frame: .zero, configuration: config)
         self.spaceID = spaceID
         super.init()
@@ -54,16 +78,6 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
             webView.observe(\.canGoBack) { [weak self] web, _ in self?.canGoBack = web.canGoBack },
             webView.observe(\.canGoForward) { [weak self] web, _ in self?.canGoForward = web.canGoForward },
         ]
-
-        if let url {
-            if loadNow {
-                webView.load(URLRequest(url: url))
-            } else {
-                pendingURL = url
-                self.url = url
-                title = url.host ?? "New Tab"
-            }
-        }
     }
 
     func load(_ url: URL) {
@@ -110,8 +124,13 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
                  createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
-        onOpenInNewTab?(navigationAction.request)
-        return nil
+        // Return a web view built from WebKit's configuration so window.opener keeps working
+        // (needed by "Sign in with Google" and other OAuth popups). WebKit loads the request itself.
+        return onCreatePopup?(configuration)?.webView
+    }
+
+    func webViewDidClose(_ webView: WKWebView) {
+        onClose?()
     }
 
     // MARK: WKNavigationDelegate

@@ -90,6 +90,18 @@ final class BrowserState: ObservableObject {
     func newTab(url: URL? = nil, select: Bool = true, spaceID: UUID? = nil, loadNow: Bool = true) -> Tab {
         let space = spaceID ?? currentSpaceID
         let tab = Tab(url: url, dataStore: dataStore, spaceID: space, loadNow: loadNow)
+        wire(tab)
+        tabs.append(tab)
+        if select {
+            selectedID = tab.id
+            lastSelected[space] = tab.id
+            addressText = url?.absoluteString ?? ""
+            showFind = false
+        }
+        return tab
+    }
+
+    private func wire(_ tab: Tab) {
         tab.onOpenInNewTab = { [weak self] request in
             guard let url = request.url else { return }
             self?.newTab(url: url)
@@ -101,14 +113,20 @@ final class BrowserState: ObservableObject {
         tab.onDownload = { [weak self] download in
             self?.downloads?.add(download)
         }
-        tabs.append(tab)
-        if select {
-            selectedID = tab.id
-            lastSelected[space] = tab.id
-            addressText = url?.absoluteString ?? ""
-            showFind = false
+        tab.onCreatePopup = { [weak self, weak tab] configuration in
+            guard let self, let tab else { return nil }
+            let popup = Tab(configuration: configuration, spaceID: tab.spaceID)
+            self.wire(popup)
+            popup.onClose = { [weak self, weak popup] in
+                guard let self, let popup else { return }
+                DispatchQueue.main.async { self.close(popup) }
+            }
+            self.tabs.append(popup)
+            self.selectedID = popup.id
+            self.lastSelected[popup.spaceID] = popup.id
+            self.showFind = false
+            return popup
         }
-        return tab
     }
 
     /// Opens a blank tab and puts the cursor in the address bar.
