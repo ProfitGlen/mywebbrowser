@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Sources/**'
+      - 'Package.swift'
+      - 'VERSION'
+      - 'build_app.sh'
+      - 'UPDATE_REPO'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: ver
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already released
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.ver.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v${{ steps.ver.outputs.version }} already released, nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build MyBrowser.app
+        if: steps.check.outputs.exists == 'false'
+        run: bash build_app.sh
+
+      - name: Zip
+        if: steps.check.outputs.exists == 'false'
+        run: ditto -c -k --keepParent MyBrowser.app "MyBrowser-${{ steps.ver.outputs.version }}.zip"
+
+      - name: Publish release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES="$(git log -1 --pretty=%s)"
+          gh release create "v${{ steps.ver.outputs.version }}" \
+            "MyBrowser-${{ steps.ver.outputs.version }}.zip" \
+            --title "MyBrowser ${{ steps.ver.outputs.version }}" \
+            --notes "$NOTES"
