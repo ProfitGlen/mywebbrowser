@@ -48,7 +48,9 @@ struct ContentView: View {
     @ViewBuilder private var layout: some View {
         if tabLayout == "top" {
             VStack(spacing: 0) {
-                TopTabBar(addressFocused: $addressFocused)
+                TopControlsBar(addressFocused: $addressFocused)
+                Divider()
+                TopTabStrip()
                 Divider()
                 detail
             }
@@ -123,7 +125,7 @@ struct Toolbar: View {
 
             TextField("Search or enter address", text: $state.addressText)
                 .textFieldStyle(.roundedBorder)
-                .frame(minWidth: compact ? 200 : nil, idealWidth: compact ? 340 : nil, maxWidth: compact ? 400 : nil)
+                .frame(minWidth: compact ? 200 : nil, idealWidth: compact ? 520 : nil, maxWidth: compact ? 760 : nil)
                 .focused(addressFocused)
                 .onSubmit {
                     state.submitAddress()
@@ -836,7 +838,8 @@ struct RailBookmarkIcon: View {
 
 // MARK: - Top layout (tab strip + bookmarks bar)
 
-struct TopTabBar: View {
+/// Row 1 of the top layout (like Safari): navigation, address bar, bookmark star, and the utility buttons.
+struct TopControlsBar: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var spaceStore: SpaceStore
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
@@ -844,34 +847,11 @@ struct TopTabBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // Back / forward / reload, address bar and bookmark star share this one row.
             if let tab = state.selected {
                 Toolbar(tab: tab, addressFocused: addressFocused, compact: true)
-                Divider().frame(height: 16)
             }
 
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {
-                        ForEach(state.pinnedTabs) { tab in
-                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
-                        }
-                        if !state.pinnedTabs.isEmpty {
-                            Divider().frame(height: 16)
-                        }
-                        ForEach(state.regularTabs) { tab in
-                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                .onChange(of: state.selectedID) { id in
-                    guard let id else { return }
-                    withAnimation { proxy.scrollTo(id) }
-                }
-            }
-
-            RailButton(symbol: "plus", help: "New Tab (⌘T)") { state.newTabAndFocus() }
+            Spacer(minLength: 0)
 
             Divider().frame(height: 16)
 
@@ -898,7 +878,42 @@ struct TopTabBar: View {
             RailButton(symbol: "arrow.down.circle", help: "Downloads (⇧⌘J)") { state.panel = .downloads }
         }
         .padding(.horizontal, 8)
-        .frame(height: 38)
+        .frame(height: 40)
+        .background(.regularMaterial)
+    }
+}
+
+/// Row 2 of the top layout: the tabs get the full width.
+struct TopTabStrip: View {
+    @EnvironmentObject var state: BrowserState
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(state.pinnedTabs) { tab in
+                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
+                        }
+                        if !state.pinnedTabs.isEmpty {
+                            Divider().frame(height: 16)
+                        }
+                        ForEach(state.regularTabs) { tab in
+                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onChange(of: state.selectedID) { id in
+                    guard let id else { return }
+                    withAnimation { proxy.scrollTo(id) }
+                }
+            }
+
+            RailButton(symbol: "plus", help: "New Tab (⌘T)") { state.newTabAndFocus() }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 36)
         .background(.regularMaterial)
     }
 }
@@ -940,7 +955,7 @@ struct TopTabItem: View {
             }
         }
         .padding(.horizontal, 8)
-        .frame(width: tab.isPinned ? 36 : 150, height: 28)
+        .frame(width: tab.isPinned ? 36 : 180, height: 28)
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(isSelected ? state.currentSpace.color.color.opacity(0.28)

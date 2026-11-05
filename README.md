@@ -4,7 +4,7 @@ A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 
 ## Features
 - **Spaces**: separate groups of tabs for different things you're working on (Work, School, a project). Each space has its own tabs and pinned tabs, a color and an icon. Switch with the icons at the bottom of the sidebar or Ctrl+1 to Ctrl+9. Right-click a space to rename it, change its color or icon, or delete it. Right-click a tab > Move to Space. Your last space and each space's last tab are remembered. Bookmarks, history and downloads are shared across spaces.
-- **Two layouts**: tabs in a vertical sidebar, or across the top (tab strip above the address bar, bookmarks row below it, Spaces menu at the left of the strip). Switch in Settings or with Opt+Cmd+\\.
+- **Two layouts**: tabs in a vertical sidebar, or across the top (address bar and buttons in the top row like Safari, tab strip below it, bookmarks row under that). Switch in Settings or with Opt+Cmd+\\.
 - **Collapsible sidebar**: shrink it to a narrow icon rail with the sidebar button or Cmd+\\ (tabs and bookmarks show as lettered icons, spaces and History/Downloads stay at the bottom). Drag the edge of the expanded sidebar to resize it. In Settings, turn on "Shrink sidebar to icons automatically" to collapse it after you click a tab or bookmark in the sidebar, or click the page.
 - **Tabs** in a vertical sidebar (new, close, switch, drag to reorder, loading spinner). Tabs, bookmarks and the icon rail show each site's own icon
 - **Pinned tabs**: right-click a tab or press Opt+Cmd+P. They sit at the top of that space and come back on launch. Closing a pinned tab (right-click > Close Tab) unpins it.
