@@ -9,24 +9,46 @@ struct WebViewContainer: NSViewRepresentable {
 }
 
 /// Top layout: let the controls share the window's title bar row (like Safari) and hide the title.
+/// Reports back once the window is really set up, so the layout only slides under the title bar
+/// when that is safe (otherwise the controls would be hidden behind it).
+final class WindowConfigView: NSView {
+    var fullBleed = false { didSet { apply() } }
+    var onApplied: ((Bool) -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        apply()
+    }
+
+    private func apply() {
+        guard let window else { return }
+        window.titlebarAppearsTransparent = fullBleed
+        window.titleVisibility = fullBleed ? .hidden : .visible
+        window.isMovableByWindowBackground = fullBleed
+        if fullBleed {
+            window.styleMask.insert(.fullSizeContentView)
+        } else {
+            window.styleMask.remove(.fullSizeContentView)
+        }
+        let applied = fullBleed
+        DispatchQueue.main.async { [weak self] in self?.onApplied?(applied) }
+    }
+}
+
 struct WindowConfigurator: NSViewRepresentable {
     let fullBleed: Bool
+    @Binding var applied: Bool
 
-    func makeNSView(context: Context) -> NSView { NSView() }
+    func makeNSView(context: Context) -> WindowConfigView {
+        let view = WindowConfigView()
+        view.onApplied = { applied = $0 }
+        view.fullBleed = fullBleed
+        return view
+    }
 
-    func updateNSView(_ view: NSView, context: Context) {
-        let fullBleed = fullBleed
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            window.titlebarAppearsTransparent = fullBleed
-            window.titleVisibility = fullBleed ? .hidden : .visible
-            window.isMovableByWindowBackground = fullBleed
-            if fullBleed {
-                window.styleMask.insert(.fullSizeContentView)
-            } else {
-                window.styleMask.remove(.fullSizeContentView)
-            }
-        }
+    func updateNSView(_ view: WindowConfigView, context: Context) {
+        view.onApplied = { applied = $0 }
+        view.fullBleed = fullBleed
     }
 }
 
@@ -45,6 +67,8 @@ struct ContentView: View {
     @AppStorage("sidebarWidth") private var sidebarWidth = 240.0
     /// "sidebar" (vertical, left) or "top" (tab strip + bookmarks bar across the top).
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
+    /// True once the window's title bar has been merged with the top row.
+    @State private var fullBleedApplied = false
 
     private var detail: some View {
         VStack(spacing: 0) {
@@ -76,7 +100,7 @@ struct ContentView: View {
                 Divider()
                 detail
             }
-            .ignoresSafeArea(.container, edges: .top)
+            .ignoresSafeArea(.container, edges: fullBleedApplied ? .top : [])
         } else {
             HStack(spacing: 0) {
                 Group {
@@ -103,7 +127,7 @@ struct ContentView: View {
 
     var body: some View {
         layout
-        .background(WindowConfigurator(fullBleed: tabLayout == "top"))
+        .background(WindowConfigurator(fullBleed: tabLayout == "top", applied: $fullBleedApplied))
         .onReceive(NotificationCenter.default.publisher(for: .focusAddressBar)) { _ in
             addressFocused = true
         }
