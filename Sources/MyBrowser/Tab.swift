@@ -38,11 +38,22 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
     /// Called when the page closes itself (window.close), e.g. after a sign-in popup finishes.
     var onClose: (() -> Void)?
 
-    /// Safari's version follows macOS (macOS 26 -> Safari 26); older systems get the latest Safari they can run.
-    static var safariVersion: String {
+    /// The version of the Safari installed on this Mac (major.minor, as Safari reports it in its
+    /// user agent), so MyBrowser stays current as macOS updates Safari. Falls back to a guess from
+    /// the macOS version if Safari can't be read.
+    static let safariVersion: String = {
+        let paths = ["/Applications/Safari.app",
+                     "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app",
+                     "/System/Applications/Safari.app"]
+        for path in paths {
+            if let version = Bundle(path: path)?.infoDictionary?["CFBundleShortVersionString"] as? String {
+                let parts = version.split(separator: ".").prefix(2)
+                if parts.count >= 1, parts.allSatisfy({ Int($0) != nil }) { return parts.joined(separator: ".") }
+            }
+        }
         let v = ProcessInfo.processInfo.operatingSystemVersion
         return v.majorVersion >= 26 ? "\(v.majorVersion).\(v.minorVersion)" : "18.6"
-    }
+    }()
 
     /// Safari-like identity, because sites such as Google refuse sign-in from unknown embedded browsers.
     static func makeConfiguration(dataStore: WKWebsiteDataStore) -> WKWebViewConfiguration {
