@@ -8,6 +8,29 @@ struct WebViewContainer: NSViewRepresentable {
     func updateNSView(_ nsView: WKWebView, context: Context) {}
 }
 
+/// Puts the cursor in the address bar. The field lives in the window toolbar in the top layout, and
+/// SwiftUI's focus state doesn't always reach toolbar fields, so also focus the real text field directly.
+enum AddressFieldFocus {
+    static let placeholder = "Search or enter address"
+
+    static func focus() {
+        guard let window = NSApp.keyWindow, let content = window.contentView else { return }
+        let root = content.superview ?? content
+        func find(_ view: NSView) -> NSTextField? {
+            if let field = view as? NSTextField, field.isEditable,
+               field.placeholderString == placeholder || field.placeholderAttributedString?.string == placeholder {
+                return field
+            }
+            for sub in view.subviews { if let found = find(sub) { return found } }
+            return nil
+        }
+        if let field = find(root) {
+            window.makeFirstResponder(field)
+            field.selectText(nil)
+        }
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var bookmarks: BookmarkStore
@@ -97,8 +120,12 @@ struct ContentView: View {
             }
         }
         .toolbar(tabLayout == "top" ? .visible : .hidden, for: .windowToolbar)
+        // Subtle tint of the current space's color, like the sidebar has.
+        .toolbarBackground(state.currentSpace.color.color.opacity(0.12), for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
         .onReceive(NotificationCenter.default.publisher(for: .focusAddressBar)) { _ in
             addressFocused = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { AddressFieldFocus.focus() }
         }
         .sheet(item: $state.panel) { panel in
             switch panel {
@@ -1009,6 +1036,7 @@ struct TopTabStrip: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 36)
+        .background(state.currentSpace.color.color.opacity(0.07))
         .background(.regularMaterial)
     }
 }
@@ -1114,6 +1142,7 @@ struct BookmarksBar: View {
             .padding(.horizontal, 8)
         }
         .frame(height: 28)
+        .background(state.currentSpace.color.color.opacity(0.07))
         .background(.bar)
     }
 }
