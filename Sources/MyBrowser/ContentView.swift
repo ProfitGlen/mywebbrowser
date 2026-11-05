@@ -8,16 +8,15 @@ struct WebViewContainer: NSViewRepresentable {
     func updateNSView(_ nsView: WKWebView, context: Context) {}
 }
 
-/// Top layout: let the controls share the window's title bar row (like Safari) and hide the title.
-/// Reports back once the window is really set up, so the layout only slides under the title bar
-/// when that is safe (otherwise the controls would be hidden behind it).
+/// "Safari style" window: the title bar is see-through and hidden, so the toolbar can share its row
+/// with the red / yellow / green buttons. Applied once, as soon as the window exists (not toggled by layout).
 final class WindowConfigView: NSView {
     var fullBleed = false { didSet { apply() } }
-    var onApplied: ((Bool) -> Void)?
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         apply()
+        DispatchQueue.main.async { [weak self] in self?.apply() }
     }
 
     private func apply() {
@@ -30,24 +29,19 @@ final class WindowConfigView: NSView {
         } else {
             window.styleMask.remove(.fullSizeContentView)
         }
-        let applied = fullBleed
-        DispatchQueue.main.async { [weak self] in self?.onApplied?(applied) }
     }
 }
 
 struct WindowConfigurator: NSViewRepresentable {
     let fullBleed: Bool
-    @Binding var applied: Bool
 
     func makeNSView(context: Context) -> WindowConfigView {
         let view = WindowConfigView()
-        view.onApplied = { applied = $0 }
         view.fullBleed = fullBleed
         return view
     }
 
     func updateNSView(_ view: WindowConfigView, context: Context) {
-        view.onApplied = { applied = $0 }
         view.fullBleed = fullBleed
     }
 }
@@ -67,8 +61,8 @@ struct ContentView: View {
     @AppStorage("sidebarWidth") private var sidebarWidth = 240.0
     /// "sidebar" (vertical, left) or "top" (tab strip + bookmarks bar across the top).
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
-    /// True once the window's title bar has been merged with the top row.
-    @State private var fullBleedApplied = false
+    /// Settings > Layout: let the toolbar share the title bar row (Safari style).
+    @AppStorage("mergeTitleBar") private var mergeTitleBar = true
 
     private var detail: some View {
         VStack(spacing: 0) {
@@ -100,7 +94,7 @@ struct ContentView: View {
                 Divider()
                 detail
             }
-            .ignoresSafeArea(.container, edges: fullBleedApplied ? .top : [])
+
         } else {
             HStack(spacing: 0) {
                 Group {
@@ -126,8 +120,18 @@ struct ContentView: View {
     }
 
     var body: some View {
-        layout
-        .background(WindowConfigurator(fullBleed: tabLayout == "top", applied: $fullBleedApplied))
+        VStack(spacing: 0) {
+            // Sidebar layout: keep a thin strip for the window buttons now that the title bar is see-through.
+            if mergeTitleBar && tabLayout != "top" {
+                Color.clear
+                    .frame(height: 28)
+                    .background(.regularMaterial)
+                    .overlay(alignment: .bottom) { Divider() }
+            }
+            layout
+        }
+        .ignoresSafeArea(.container, edges: mergeTitleBar ? .top : [])
+        .background(WindowConfigurator(fullBleed: mergeTitleBar))
         .onReceive(NotificationCenter.default.publisher(for: .focusAddressBar)) { _ in
             addressFocused = true
         }
@@ -891,6 +895,7 @@ struct TopControlsBar: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var spaceStore: SpaceStore
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
+    @AppStorage("mergeTitleBar") private var mergeTitleBar = true
     var addressFocused: FocusState<Bool>.Binding
 
     var body: some View {
@@ -925,7 +930,7 @@ struct TopControlsBar: View {
             RailButton(symbol: "clock", help: "History (⌘Y)") { state.panel = .history }
             RailButton(symbol: "arrow.down.circle", help: "Downloads (⇧⌘J)") { state.panel = .downloads }
         }
-        .padding(.leading, 78) // room for the red / yellow / green window buttons
+        .padding(.leading, mergeTitleBar ? 78 : 8) // room for the red / yellow / green window buttons
         .padding(.trailing, 8)
         .frame(height: 38)
         .background(.regularMaterial)
