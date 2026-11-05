@@ -957,24 +957,34 @@ struct TopTabStrip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {
-                        ForEach(state.pinnedTabs) { tab in
-                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
+            GeometryReader { geo in
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(state.pinnedTabs) { tab in
+                                TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
+                            }
+                            if !state.pinnedTabs.isEmpty {
+                                Divider().frame(height: 16)
+                            }
+                            ForEach(state.regularTabs) { tab in
+                                TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
+                            }
+                            // All the empty space after the last tab: click to open a new tab.
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                                .frame(minWidth: 24, minHeight: 28)
+                                .contentShape(Rectangle())
+                                .onTapGesture { state.newTabAndFocus() }
+                                .help("New Tab")
                         }
-                        if !state.pinnedTabs.isEmpty {
-                            Divider().frame(height: 16)
-                        }
-                        ForEach(state.regularTabs) { tab in
-                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
-                        }
+                        .padding(.vertical, 4)
+                        .frame(minWidth: geo.size.width, alignment: .leading)
                     }
-                    .padding(.vertical, 4)
-                }
-                .onChange(of: state.selectedID) { id in
-                    guard let id else { return }
-                    withAnimation { proxy.scrollTo(id) }
+                    .onChange(of: state.selectedID) { id in
+                        guard let id else { return }
+                        withAnimation { proxy.scrollTo(id) }
+                    }
                 }
             }
 
