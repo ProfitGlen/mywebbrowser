@@ -18,6 +18,8 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var isPinned = false
+    /// Set false for private windows so their icons aren't saved to disk.
+    var persistFavicons = true
 
     /// The address a pinned tab was pinned at (what gets restored on launch).
     var pinnedURL: URL?
@@ -137,6 +139,34 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let url = webView.url { onVisit?(webView.title ?? "", url) }
+        loadFavicon()
+    }
+
+    /// Finds the page's best icon (apple-touch-icon / PNG / ICO) and hands it to the shared store.
+    private func loadFavicon() {
+        guard let pageURL = webView.url, let host = pageURL.host,
+              pageURL.scheme == "http" || pageURL.scheme == "https" else { return }
+        let js = """
+        (function(){
+          var best='', bestSize=-1;
+          document.querySelectorAll('link[rel*="icon"]').forEach(function(e){
+            var h=e.href; if(!h) return;
+            if(/\\.svg(\\?|$)/i.test(h) || (e.type||'').indexOf('svg')>=0) return;
+            var m=((e.getAttribute('sizes')||'')).match(/(\\d+)x/);
+            var size = m ? parseInt(m[1]) : (/apple-touch/.test(e.rel) ? 180 : 16);
+            if(size>192) size=1;
+            if(size>bestSize){bestSize=size;best=h;}
+          });
+          return best;
+        })()
+        """
+        let persist = persistFavicons
+        webView.evaluateJavaScript(js) { result, _ in
+            var iconURL: URL?
+            if let string = result as? String, !string.isEmpty { iconURL = URL(string: string) }
+            if iconURL == nil { iconURL = URL(string: "\(pageURL.scheme ?? "https")://\(host)/favicon.ico") }
+            if let iconURL { FaviconStore.shared.fetch(iconURL: iconURL, host: host, persist: persist) }
+        }
     }
 
     func webView(_ webView: WKWebView,

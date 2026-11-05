@@ -5,7 +5,7 @@ A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 ## Features
 - **Spaces**: separate groups of tabs for different things you're working on (Work, School, a project). Each space has its own tabs and pinned tabs, a color and an icon. Switch with the icons at the bottom of the sidebar or Ctrl+1 to Ctrl+9. Right-click a space to rename it, change its color or icon, or delete it. Right-click a tab > Move to Space. Your last space and each space's last tab are remembered. Bookmarks, history and downloads are shared across spaces.
 - **Collapsible sidebar**: shrink it to a narrow icon rail with the sidebar button or Cmd+\\ (tabs and bookmarks show as lettered icons, spaces and History/Downloads stay at the bottom). Drag the edge of the expanded sidebar to resize it. In Settings, turn on "Shrink sidebar to icons automatically" to collapse it after you click a tab or bookmark in the sidebar, or click the page.
-- **Tabs** in a vertical sidebar (new, close, switch, loading spinner)
+- **Tabs** in a vertical sidebar (new, close, switch, drag to reorder, loading spinner). Tabs, bookmarks and the icon rail show each site's own icon
 - **Pinned tabs**: right-click a tab or press Opt+Cmd+P. They sit at the top of that space and come back on launch. Closing a pinned tab (right-click > Close Tab) unpins it.
 - **Address bar** takes a URL or a search term, with a **suggestions** dropdown from your bookmarks and history
 - Back / forward / reload / stop, swipe gestures, page load progress bar
@@ -60,4 +60,4 @@ Releases are built automatically. Every push to `main` that changes the code run
 `release.sh` is a manual fallback that builds and publishes from your own Mac (needs `gh auth login`).
 
 ## Known gaps
-No arrow-key navigation in the suggestions list, no favicons, no JavaScript alert/permission dialogs, no extensions, bookmarks aren't per-space, and each new window reloads your pinned tabs.
+No arrow-key navigation in the suggestions list, no JavaScript alert/permission dialogs, no extensions, bookmarks aren't per-space, and each new window reloads your pinned tabs.

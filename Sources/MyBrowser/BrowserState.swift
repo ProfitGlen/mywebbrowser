@@ -102,6 +102,7 @@ final class BrowserState: ObservableObject {
     }
 
     private func wire(_ tab: Tab) {
+        tab.persistFavicons = !isPrivate
         tab.onOpenInNewTab = { [weak self] request in
             guard let url = request.url else { return }
             self?.newTab(url: url)
@@ -277,6 +278,19 @@ final class BrowserState: ObservableObject {
     }
 
     // MARK: Pinned tabs
+
+    /// Drag and drop: put the dragged tab where `target` is (same space, same pinned/unpinned group).
+    func moveTab(_ id: UUID, onto target: Tab) {
+        guard let from = tabs.firstIndex(where: { $0.id == id }),
+              let targetIndex = tabs.firstIndex(where: { $0.id == target.id }),
+              from != targetIndex else { return }
+        let tab = tabs[from]
+        guard tab.spaceID == target.spaceID, tab.isPinned == target.isPinned else { return }
+        tabs.remove(at: from)
+        let newTarget = tabs.firstIndex(where: { $0.id == target.id }) ?? tabs.count
+        tabs.insert(tab, at: from < targetIndex ? newTarget + 1 : newTarget)
+        if tab.isPinned { savePins() }
+    }
 
     func togglePin(_ tab: Tab) {
         tab.isPinned.toggle()

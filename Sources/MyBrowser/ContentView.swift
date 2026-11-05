@@ -432,14 +432,24 @@ struct BookmarkRow: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var bookmarks: BookmarkStore
     let bookmark: Bookmark
+    @ObservedObject private var icons = FaviconStore.shared
     @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "star.fill")
-                .font(.caption)
-                .foregroundStyle(.yellow)
-                .frame(width: 14, height: 14)
+            if let icon = icons.image(for: bookmark.url.host) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            } else {
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                    .frame(width: 14, height: 14)
+            }
             Text(bookmark.title).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 0)
             if hovering {
@@ -464,6 +474,7 @@ struct BookmarkRow: View {
             state.sidebarItemClicked()
         }
         .onHover { hovering = $0 }
+        .onAppear { icons.ensure(host: bookmark.url.host) }
         .contextMenu {
             Button("Open in New Tab") { state.newTab(url: bookmark.url) }
             Menu("Move to Folder") {
@@ -491,13 +502,22 @@ struct TabRow: View {
     @EnvironmentObject var bookmarks: BookmarkStore
     @EnvironmentObject var spaceStore: SpaceStore
     @ObservedObject var tab: Tab
+    @ObservedObject private var icons = FaviconStore.shared
     let isSelected: Bool
     @State private var hovering = false
+    @State private var dropTargeted = false
 
     var body: some View {
         HStack(spacing: 8) {
             if tab.isLoading {
                 ProgressView().controlSize(.small).frame(width: 14, height: 14)
+            } else if let icon = icons.image(for: tab.url?.host) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
             } else {
                 Image(systemName: tab.isPinned ? "pin.fill" : "globe")
                     .font(.caption)
@@ -519,11 +539,20 @@ struct TabRow: View {
                       : hovering ? Color.primary.opacity(0.08) : .clear)
         )
         .contentShape(Rectangle())
+        .overlay(alignment: .top) {
+            if dropTargeted { Rectangle().fill(state.currentSpace.color.color).frame(height: 2) }
+        }
         .onTapGesture {
             state.select(tab)
             state.sidebarItemClicked()
         }
         .onHover { hovering = $0 }
+        .draggable(tab.id.uuidString)
+        .dropDestination(for: String.self) { items, _ in
+            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+            state.moveTab(id, onto: tab)
+            return true
+        } isTargeted: { dropTargeted = $0 }
         .contextMenu {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") { state.togglePin(tab) }
             Button("Bookmark This Page") { bookmarks.toggle(title: tab.title, url: tab.url) }
@@ -651,8 +680,9 @@ struct RailButton: View {
     }
 }
 
-/// Rounded square with the site's first letter (stands in until favicons exist).
+/// Rounded square with the site's icon, or its first letter until the icon is known.
 struct IconBadge: View {
+    var icon: NSImage? = nil
     let title: String
     let colorKey: String
     let isSelected: Bool
@@ -673,8 +703,15 @@ struct IconBadge: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 9)
-                .fill(tint.opacity(isSelected ? 0.4 : 0.2))
-            if letter.isEmpty {
+                .fill(icon != nil ? Color(nsColor: .controlBackgroundColor) : tint.opacity(isSelected ? 0.4 : 0.2))
+            if let icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else if letter.isEmpty {
                 Image(systemName: "globe").font(.system(size: 14)).foregroundStyle(.secondary)
             } else {
                 Text(letter).font(.system(size: 15, weight: .semibold)).foregroundStyle(tint)
@@ -692,14 +729,17 @@ struct RailTabIcon: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var bookmarks: BookmarkStore
     @ObservedObject var tab: Tab
+    @ObservedObject private var icons = FaviconStore.shared
     let isSelected: Bool
+    @State private var dropTargeted = false
 
     var body: some View {
         Button {
             state.select(tab)
             state.sidebarItemClicked()
         } label: {
-            IconBadge(title: tab.title,
+            IconBadge(icon: icons.image(for: tab.url?.host),
+                      title: tab.title,
                       colorKey: tab.url?.host ?? tab.title,
                       isSelected: isSelected,
                       selectionColor: state.currentSpace.color.color)
@@ -717,6 +757,15 @@ struct RailTabIcon: View {
         }
         .buttonStyle(.plain)
         .help(tab.title)
+        .overlay(alignment: .top) {
+            if dropTargeted { Rectangle().fill(state.currentSpace.color.color).frame(width: 30, height: 2).offset(y: -4) }
+        }
+        .draggable(tab.id.uuidString)
+        .dropDestination(for: String.self) { items, _ in
+            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+            state.moveTab(id, onto: tab)
+            return true
+        } isTargeted: { dropTargeted = $0 }
         .contextMenu {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") { state.togglePin(tab) }
             Button("Bookmark This Page") { bookmarks.toggle(title: tab.title, url: tab.url) }
@@ -731,6 +780,7 @@ struct RailBookmarkIcon: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var bookmarks: BookmarkStore
     let bookmark: Bookmark
+    @ObservedObject private var icons = FaviconStore.shared
 
     var body: some View {
         Button {
@@ -741,7 +791,8 @@ struct RailBookmarkIcon: View {
             }
             state.sidebarItemClicked()
         } label: {
-            IconBadge(title: bookmark.title,
+            IconBadge(icon: icons.image(for: bookmark.url.host),
+                      title: bookmark.title,
                       colorKey: bookmark.url.host ?? bookmark.title,
                       isSelected: false,
                       selectionColor: .clear)
@@ -756,6 +807,7 @@ struct RailBookmarkIcon: View {
         }
         .buttonStyle(.plain)
         .help(bookmark.title)
+        .onAppear { icons.ensure(host: bookmark.url.host) }
         .contextMenu {
             Button("Open in New Tab") { state.newTab(url: bookmark.url) }
             Button("Remove Bookmark", role: .destructive) { bookmarks.remove(bookmark) }
