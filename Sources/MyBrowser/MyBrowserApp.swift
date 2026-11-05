@@ -44,6 +44,7 @@ struct MyBrowserApp: App {
     @StateObject private var updater = Updater()
 
     init() {
+        SessionKeeper.shared.start() // keep logins across restarts and updates
         // Show hover tooltips quickly (macOS default is over a second). Value is in milliseconds.
         UserDefaults.standard.set(150, forKey: "NSInitialToolTipDelay")
         // A SwiftPM executable isn't a bundled app, so promote it to a regular

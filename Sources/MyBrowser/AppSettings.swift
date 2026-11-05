@@ -55,6 +55,7 @@ struct SettingsView: View {
     @AppStorage("autoUpdate") private var autoUpdate = true
     @AppStorage("autoCollapseSidebar") private var autoCollapseSidebar = false
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
+    @AppStorage("keepSignedIn") private var keepSignedIn = true
     @EnvironmentObject var history: HistoryStore
     @EnvironmentObject var updater: Updater
     @State private var message = ""
@@ -93,6 +94,10 @@ struct SettingsView: View {
             }
 
             Section("Privacy") {
+                Toggle("Keep me signed in across restarts", isOn: $keepSignedIn)
+                Text("Saves the temporary logins sites use, so quitting or updating MyBrowser doesn't sign you out. Sites can still end a login on their side. Turn off on a shared Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Button("Clear Browsing History…") {
                     if confirmAction("Clear all browsing history?") {
                         history.clear()
@@ -114,6 +119,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 640)
+        .frame(width: 480, height: 700)
     }
 }
