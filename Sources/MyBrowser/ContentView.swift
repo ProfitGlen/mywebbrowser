@@ -8,44 +8,6 @@ struct WebViewContainer: NSViewRepresentable {
     func updateNSView(_ nsView: WKWebView, context: Context) {}
 }
 
-/// "Safari style" window: the title bar is see-through and hidden, so the toolbar can share its row
-/// with the red / yellow / green buttons. Applied once, as soon as the window exists (not toggled by layout).
-final class WindowConfigView: NSView {
-    var fullBleed = false { didSet { apply() } }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        apply()
-        DispatchQueue.main.async { [weak self] in self?.apply() }
-    }
-
-    private func apply() {
-        guard let window else { return }
-        window.titlebarAppearsTransparent = fullBleed
-        window.titleVisibility = fullBleed ? .hidden : .visible
-        window.isMovableByWindowBackground = fullBleed
-        if fullBleed {
-            window.styleMask.insert(.fullSizeContentView)
-        } else {
-            window.styleMask.remove(.fullSizeContentView)
-        }
-    }
-}
-
-struct WindowConfigurator: NSViewRepresentable {
-    let fullBleed: Bool
-
-    func makeNSView(context: Context) -> WindowConfigView {
-        let view = WindowConfigView()
-        view.fullBleed = fullBleed
-        return view
-    }
-
-    func updateNSView(_ view: WindowConfigView, context: Context) {
-        view.fullBleed = fullBleed
-    }
-}
-
 struct ContentView: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var bookmarks: BookmarkStore
@@ -61,8 +23,6 @@ struct ContentView: View {
     @AppStorage("sidebarWidth") private var sidebarWidth = 240.0
     /// "sidebar" (vertical, left) or "top" (tab strip + bookmarks bar across the top).
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
-    /// Settings > Layout: let the toolbar share the title bar row (Safari style).
-    @AppStorage("mergeTitleBar") private var mergeTitleBar = true
 
     private var detail: some View {
         VStack(spacing: 0) {
@@ -88,13 +48,10 @@ struct ContentView: View {
     @ViewBuilder private var layout: some View {
         if tabLayout == "top" {
             VStack(spacing: 0) {
-                TopControlsBar(addressFocused: $addressFocused)
-                Divider()
                 TopTabStrip()
                 Divider()
                 detail
             }
-
         } else {
             HStack(spacing: 0) {
                 Group {
@@ -120,18 +77,22 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Sidebar layout: keep a thin strip for the window buttons now that the title bar is see-through.
-            if mergeTitleBar && tabLayout != "top" {
-                Color.clear
-                    .frame(height: 28)
-                    .background(.regularMaterial)
-                    .overlay(alignment: .bottom) { Divider() }
+        layout
+        // Top layout: a real window toolbar in the title bar row (like Safari). The system handles
+        // window buttons, resizing, dragging and full screen. Hidden in the sidebar layout.
+        .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                if let tab = state.selected { NavButtons(tab: tab) }
             }
-            layout
+            ToolbarItem(placement: .principal) {
+                if let tab = state.selected { ToolbarAddressField(tab: tab, focused: $addressFocused) }
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                if let tab = state.selected { BookmarkStar(tab: tab) }
+                ToolbarUtilityButtons()
+            }
         }
-        .ignoresSafeArea(.container, edges: mergeTitleBar ? .top : [])
-        .background(WindowConfigurator(fullBleed: mergeTitleBar))
+        .toolbar(tabLayout == "top" ? .visible : .hidden, for: .windowToolbar)
         .onReceive(NotificationCenter.default.publisher(for: .focusAddressBar)) { _ in
             addressFocused = true
         }
@@ -890,25 +851,80 @@ struct RailBookmarkIcon: View {
 
 // MARK: - Top layout (tab strip + bookmarks bar)
 
-/// Row 1 of the top layout (like Safari): navigation, address bar, bookmark star, and the utility buttons.
-struct TopControlsBar: View {
+/// Toolbar pieces for the top layout.
+struct NavButtons: View {
+    @EnvironmentObject var state: BrowserState
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button { tab.goBack() } label: { Image(systemName: "chevron.left") }
+                .disabled(!tab.canGoBack)
+                .help("Back (⌘[)")
+            Button { tab.goForward() } label: { Image(systemName: "chevron.right") }
+                .disabled(!tab.canGoForward)
+                .help("Forward (⌘])")
+            Button { tab.isLoading ? tab.stop() : tab.reload() } label: {
+                Image(systemName: tab.isLoading ? "xmark" : "arrow.clockwise")
+            }
+            .help(tab.isLoading ? "Stop" : "Reload (⌘R)")
+            if state.isPrivate {
+                Label("Private", systemImage: "eye.slash")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.purple.opacity(0.25)))
+            }
+        }
+    }
+}
+
+struct ToolbarAddressField: View {
+    @EnvironmentObject var state: BrowserState
+    @ObservedObject var tab: Tab
+    var focused: FocusState<Bool>.Binding
+
+    var body: some View {
+        TextField("Search or enter address", text: $state.addressText)
+            .textFieldStyle(.roundedBorder)
+            .frame(minWidth: 240, idealWidth: 560, maxWidth: 900)
+            .focused(focused)
+            .onSubmit {
+                state.submitAddress()
+                focused.wrappedValue = false
+            }
+            // Keep the address bar in sync with the page unless the user is typing.
+            .onChange(of: tab.url) { newURL in
+                if !focused.wrappedValue { state.addressText = newURL?.absoluteString ?? "" }
+            }
+    }
+}
+
+struct BookmarkStar: View {
+    @EnvironmentObject var bookmarks: BookmarkStore
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        Button {
+            bookmarks.toggle(title: tab.title, url: tab.url)
+        } label: {
+            Image(systemName: bookmarks.contains(tab.url) ? "star.fill" : "star")
+                .foregroundStyle(bookmarks.contains(tab.url) ? Color.yellow : Color.primary)
+        }
+        .help("Bookmark this page (⌘D)")
+        .disabled(tab.url == nil)
+    }
+}
+
+struct ToolbarUtilityButtons: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var spaceStore: SpaceStore
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
-    @AppStorage("mergeTitleBar") private var mergeTitleBar = true
-    var addressFocused: FocusState<Bool>.Binding
 
     var body: some View {
-        HStack(spacing: 8) {
-            if let tab = state.selected {
-                Toolbar(tab: tab, addressFocused: addressFocused, compact: true)
-            }
-
-            Spacer(minLength: 0)
-
-            Divider().frame(height: 16)
-
-            RailButton(symbol: "sidebar.left", help: "Show tabs in sidebar (⌥⌘\\)") { tabLayout = "sidebar" }
+        HStack(spacing: 6) {
+            Button { tabLayout = "sidebar" } label: { Image(systemName: "sidebar.left") }
+                .help("Show tabs in sidebar (⌥⌘\\)")
 
             // Same space icons as the sidebar's icon rail.
             ForEach(spaceStore.spaces) { space in
@@ -916,7 +932,7 @@ struct TopControlsBar: View {
                 Button { state.switchSpace(space.id) } label: {
                     Image(systemName: space.symbol)
                         .font(.system(size: 12))
-                        .frame(width: 26, height: 26)
+                        .frame(width: 24, height: 24)
                         .foregroundStyle(isCurrent ? Color.white : space.color.color)
                         .background(
                             Circle().fill(isCurrent ? space.color.color : space.color.color.opacity(0.15))
@@ -927,13 +943,11 @@ struct TopControlsBar: View {
                 .contextMenu { SpaceMenuContent(space: space) }
             }
 
-            RailButton(symbol: "clock", help: "History (⌘Y)") { state.panel = .history }
-            RailButton(symbol: "arrow.down.circle", help: "Downloads (⇧⌘J)") { state.panel = .downloads }
+            Button { state.panel = .history } label: { Image(systemName: "clock") }
+                .help("History (⌘Y)")
+            Button { state.panel = .downloads } label: { Image(systemName: "arrow.down.circle") }
+                .help("Downloads (⇧⌘J)")
         }
-        .padding(.leading, mergeTitleBar ? 78 : 8) // room for the red / yellow / green window buttons
-        .padding(.trailing, 8)
-        .frame(height: 38)
-        .background(.regularMaterial)
     }
 }
 

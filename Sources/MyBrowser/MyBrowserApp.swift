@@ -61,6 +61,7 @@ struct MyBrowserApp: App {
                 .environmentObject(spaceStore)
                 .environmentObject(updater)
         }
+        .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             BrowserCommands(bookmarks: bookmarks, history: history, spaceStore: spaceStore, updater: updater)
         }
@@ -73,6 +74,7 @@ struct MyBrowserApp: App {
                 .environmentObject(spaceStore)
                 .environmentObject(updater)
         }
+        .windowToolbarStyle(.unified(showsTitle: false))
 
         Settings {
             SettingsView()

@@ -55,7 +55,6 @@ struct SettingsView: View {
     @AppStorage("autoUpdate") private var autoUpdate = true
     @AppStorage("autoCollapseSidebar") private var autoCollapseSidebar = false
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
-    @AppStorage("mergeTitleBar") private var mergeTitleBar = true
     @EnvironmentObject var history: HistoryStore
     @EnvironmentObject var updater: Updater
     @State private var message = ""
@@ -72,10 +71,6 @@ struct SettingsView: View {
                     Text("Sidebar (vertical)").tag("sidebar")
                     Text("Across the top").tag("top")
                 }
-                Toggle("Toolbar shares the title bar row (Safari style)", isOn: $mergeTitleBar)
-                Text("Turn this off if the address bar or buttons ever go missing, then quit and reopen MyBrowser.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Text("Across the top shows tabs in a strip above the address bar and bookmarks in a row below it. Switch any time with ⌥⌘\\.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -119,6 +114,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 720)
+        .frame(width: 480, height: 640)
     }
 }
