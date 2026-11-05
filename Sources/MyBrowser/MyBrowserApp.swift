@@ -86,6 +86,7 @@ struct BrowserCommands: Commands {
     /// The window currently in front.
     @FocusedObject private var state: BrowserState?
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("tabLayout") private var tabLayout = "sidebar"
     @ObservedObject var bookmarks: BookmarkStore
     @ObservedObject var history: HistoryStore
     @ObservedObject var spaceStore: SpaceStore
@@ -99,6 +100,10 @@ struct BrowserCommands: Commands {
         CommandGroup(replacing: .sidebar) {
             Button("Toggle Sidebar") { state?.toggleSidebar() }
                 .keyboardShortcut("\\")
+            Button(tabLayout == "top" ? "Show Tabs in Sidebar" : "Show Tabs Across the Top") {
+                tabLayout = tabLayout == "top" ? "sidebar" : "top"
+            }
+            .keyboardShortcut("\\", modifiers: [.command, .option])
         }
 
         CommandGroup(replacing: .newItem) {

@@ -21,12 +21,15 @@ struct ContentView: View {
     }
 
     @AppStorage("sidebarWidth") private var sidebarWidth = 240.0
+    /// "sidebar" (vertical, left) or "top" (tab strip + bookmarks bar across the top).
+    @AppStorage("tabLayout") private var tabLayout = "sidebar"
 
     private var detail: some View {
         VStack(spacing: 0) {
             if let tab = state.selected {
                 Toolbar(tab: tab, addressFocused: $addressFocused)
                 ProgressBar(tab: tab)
+                if tabLayout == "top" && !bookmarks.items.isEmpty { BookmarksBar() }
                 if state.showFind { FindBar() }
                 ZStack(alignment: .top) {
                     WebViewContainer(tab: tab).id(tab.id)
@@ -42,27 +45,39 @@ struct ContentView: View {
         .frame(maxWidth: .infinity)
     }
 
-    var body: some View {
-        HStack(spacing: 0) {
-            Group {
-                if state.sidebarCollapsed {
-                    CollapsedSidebar()
-                } else {
-                    Sidebar()
-                }
-            }
-            .frame(width: state.sidebarCollapsed ? 56 : CGFloat(sidebarWidth))
-            .background(.regularMaterial)
-
-            if state.sidebarCollapsed {
+    @ViewBuilder private var layout: some View {
+        if tabLayout == "top" {
+            VStack(spacing: 0) {
+                TopTabBar()
                 Divider()
-            } else {
-                SidebarResizeHandle(width: $sidebarWidth)
+                detail
             }
+        } else {
+            HStack(spacing: 0) {
+                Group {
+                    if state.sidebarCollapsed {
+                        CollapsedSidebar()
+                    } else {
+                        Sidebar()
+                    }
+                }
+                .frame(width: state.sidebarCollapsed ? 56 : CGFloat(sidebarWidth))
+                .background(.regularMaterial)
 
-            detail
+                if state.sidebarCollapsed {
+                    Divider()
+                } else {
+                    SidebarResizeHandle(width: $sidebarWidth)
+                }
+
+                detail
+            }
+            .animation(.easeInOut(duration: 0.2), value: state.sidebarCollapsed)
         }
-        .animation(.easeInOut(duration: 0.2), value: state.sidebarCollapsed)
+    }
+
+    var body: some View {
+        layout
         .onReceive(NotificationCenter.default.publisher(for: .focusAddressBar)) { _ in
             addressFocused = true
         }
@@ -808,6 +823,234 @@ struct RailBookmarkIcon: View {
         .buttonStyle(.plain)
         .help(bookmark.title)
         .onAppear { icons.ensure(host: bookmark.url.host) }
+        .contextMenu {
+            Button("Open in New Tab") { state.newTab(url: bookmark.url) }
+            Button("Remove Bookmark", role: .destructive) { bookmarks.remove(bookmark) }
+        }
+    }
+}
+
+
+// MARK: - Top layout (tab strip + bookmarks bar)
+
+struct TopTabBar: View {
+    @EnvironmentObject var state: BrowserState
+
+    var body: some View {
+        HStack(spacing: 6) {
+            SpaceMenuButton()
+
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(state.pinnedTabs) { tab in
+                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
+                        }
+                        if !state.pinnedTabs.isEmpty {
+                            Divider().frame(height: 16)
+                        }
+                        ForEach(state.regularTabs) { tab in
+                            TopTabItem(tab: tab, isSelected: tab.id == state.selectedID)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onChange(of: state.selectedID) { id in
+                    guard let id else { return }
+                    withAnimation { proxy.scrollTo(id) }
+                }
+            }
+
+            Button { state.newTabAndFocus() } label: { Image(systemName: "plus") }
+                .help("New Tab (⌘T)")
+            Button { state.panel = .history } label: { Image(systemName: "clock") }
+                .help("History (⌘Y)")
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 8)
+        .frame(height: 38)
+        .background(.regularMaterial)
+    }
+}
+
+/// Current space's icon; click to switch spaces, make a new one, or manage the current one.
+struct SpaceMenuButton: View {
+    @EnvironmentObject var state: BrowserState
+    @EnvironmentObject var spaceStore: SpaceStore
+
+    var body: some View {
+        Menu {
+            ForEach(spaceStore.spaces) { space in
+                Button { state.switchSpace(space.id) } label: {
+                    Label(space.name, systemImage: space.symbol)
+                }
+            }
+            Divider()
+            Button("New Space…") {
+                if let name = promptForText(title: "New Space",
+                                            message: "For example: Work, School, a project name.",
+                                            confirm: "Create") {
+                    state.createSpace(name: name)
+                }
+            }
+            Menu("Manage “\(state.currentSpace.name)”") {
+                SpaceMenuContent(space: state.currentSpace)
+            }
+        } label: {
+            Image(systemName: state.currentSpace.symbol)
+                .font(.system(size: 12))
+                .frame(width: 26, height: 26)
+                .foregroundStyle(Color.white)
+                .background(Circle().fill(state.currentSpace.color.color))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Spaces: \(state.currentSpace.name)")
+    }
+}
+
+struct TopTabItem: View {
+    @EnvironmentObject var state: BrowserState
+    @EnvironmentObject var bookmarks: BookmarkStore
+    @EnvironmentObject var spaceStore: SpaceStore
+    @ObservedObject var tab: Tab
+    @ObservedObject private var icons = FaviconStore.shared
+    let isSelected: Bool
+    @State private var hovering = false
+    @State private var dropTargeted = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if tab.isLoading {
+                ProgressView().controlSize(.small).frame(width: 14, height: 14)
+            } else if let icon = icons.image(for: tab.url?.host) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            } else {
+                Image(systemName: tab.isPinned ? "pin.fill" : "globe")
+                    .font(.caption)
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(.secondary)
+            }
+            if !tab.isPinned {
+                Text(tab.title).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 0)
+                if hovering || isSelected {
+                    Button { state.close(tab) } label: { Image(systemName: "xmark").font(.caption) }
+                        .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(width: tab.isPinned ? 36 : 170, height: 28)
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(isSelected ? state.currentSpace.color.color.opacity(0.28)
+                      : hovering ? Color.primary.opacity(0.08) : .clear)
+        )
+        .overlay(alignment: .leading) {
+            if dropTargeted { Rectangle().fill(state.currentSpace.color.color).frame(width: 2) }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { state.select(tab) }
+        .onHover { hovering = $0 }
+        .draggable(tab.id.uuidString)
+        .dropDestination(for: String.self) { items, _ in
+            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+            state.moveTab(id, onto: tab)
+            return true
+        } isTargeted: { dropTargeted = $0 }
+        .help(tab.title)
+        .contextMenu {
+            Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") { state.togglePin(tab) }
+            Button("Bookmark This Page") { bookmarks.toggle(title: tab.title, url: tab.url) }
+                .disabled(tab.url == nil)
+            if spaceStore.spaces.count > 1 {
+                Menu("Move to Space") {
+                    ForEach(spaceStore.spaces.filter { $0.id != tab.spaceID }) { space in
+                        Button { state.move(tab, toSpace: space.id) } label: {
+                            Label(space.name, systemImage: space.symbol)
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Close Tab") { state.close(tab) }
+        }
+    }
+}
+
+/// Bookmarks as a row under the address bar (top layout). Folders open as menus.
+struct BookmarksBar: View {
+    @EnvironmentObject var state: BrowserState
+    @EnvironmentObject var bookmarks: BookmarkStore
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                ForEach(bookmarks.unfiled) { bookmark in
+                    BookmarkChip(bookmark: bookmark)
+                }
+                ForEach(bookmarks.folders, id: \.self) { folder in
+                    Menu {
+                        ForEach(bookmarks.items(in: folder)) { bookmark in
+                            Button(bookmark.title) { state.newTab(url: bookmark.url) }
+                        }
+                    } label: {
+                        Label(folder, systemImage: "folder")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                }
+            }
+            .padding(.horizontal, 8)
+        }
+        .frame(height: 28)
+        .background(.bar)
+    }
+}
+
+struct BookmarkChip: View {
+    @EnvironmentObject var state: BrowserState
+    @EnvironmentObject var bookmarks: BookmarkStore
+    @ObservedObject private var icons = FaviconStore.shared
+    let bookmark: Bookmark
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon = icons.image(for: bookmark.url.host) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            } else {
+                Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow)
+            }
+            Text(bookmark.title).font(.callout).lineLimit(1).frame(maxWidth: 140)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 6).fill(hovering ? Color.primary.opacity(0.1) : .clear))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // Click loads in the current tab; Cmd+click opens a new one.
+            if NSEvent.modifierFlags.contains(.command) || state.selected == nil {
+                state.newTab(url: bookmark.url)
+            } else {
+                state.selected?.load(bookmark.url)
+            }
+        }
+        .onHover { hovering = $0 }
+        .onAppear { icons.ensure(host: bookmark.url.host) }
+        .help(bookmark.url.absoluteString)
         .contextMenu {
             Button("Open in New Tab") { state.newTab(url: bookmark.url) }
             Button("Remove Bookmark", role: .destructive) { bookmarks.remove(bookmark) }

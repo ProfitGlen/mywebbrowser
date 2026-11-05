@@ -54,6 +54,7 @@ struct SettingsView: View {
     @AppStorage("homepage") private var homepage = AppSettings.defaultHomepage
     @AppStorage("autoUpdate") private var autoUpdate = true
     @AppStorage("autoCollapseSidebar") private var autoCollapseSidebar = false
+    @AppStorage("tabLayout") private var tabLayout = "sidebar"
     @EnvironmentObject var history: HistoryStore
     @EnvironmentObject var updater: Updater
     @State private var message = ""
@@ -64,6 +65,16 @@ struct SettingsView: View {
                 ForEach(SearchEngine.allCases) { Text($0.name).tag($0.rawValue) }
             }
             TextField("Home page", text: $homepage)
+
+            Section("Layout") {
+                Picker("Tabs and bookmarks", selection: $tabLayout) {
+                    Text("Sidebar (vertical)").tag("sidebar")
+                    Text("Across the top").tag("top")
+                }
+                Text("Across the top shows tabs in a strip above the address bar and bookmarks in a row below it. Switch any time with ⌥⌘\\.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Section("Sidebar") {
                 Toggle("Shrink sidebar to icons automatically", isOn: $autoCollapseSidebar)
@@ -103,6 +114,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 560)
+        .frame(width: 480, height: 640)
     }
 }
