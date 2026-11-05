@@ -38,11 +38,17 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
     /// Called when the page closes itself (window.close), e.g. after a sign-in popup finishes.
     var onClose: (() -> Void)?
 
+    /// Safari's version follows macOS (macOS 26 -> Safari 26); older systems get the latest Safari they can run.
+    static var safariVersion: String {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return v.majorVersion >= 26 ? "\(v.majorVersion).\(v.minorVersion)" : "18.6"
+    }
+
     /// Safari-like identity, because sites such as Google refuse sign-in from unknown embedded browsers.
     static func makeConfiguration(dataStore: WKWebsiteDataStore) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = dataStore // .default() persists, .nonPersistent() is private
-        config.applicationNameForUserAgent = "Version/17.5 Safari/605.1.15"
+        config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
         return config
     }
 
