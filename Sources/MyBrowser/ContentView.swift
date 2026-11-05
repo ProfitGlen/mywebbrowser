@@ -835,10 +835,31 @@ struct RailBookmarkIcon: View {
 
 struct TopTabBar: View {
     @EnvironmentObject var state: BrowserState
+    @EnvironmentObject var spaceStore: SpaceStore
+    @AppStorage("tabLayout") private var tabLayout = "sidebar"
 
     var body: some View {
         HStack(spacing: 6) {
-            SpaceMenuButton()
+            RailButton(symbol: "sidebar.left", help: "Show tabs in sidebar (⌥⌘\\)") { tabLayout = "sidebar" }
+
+            // Same space icons as the sidebar's icon rail.
+            ForEach(spaceStore.spaces) { space in
+                let isCurrent = space.id == state.currentSpaceID
+                Button { state.switchSpace(space.id) } label: {
+                    Image(systemName: space.symbol)
+                        .font(.system(size: 12))
+                        .frame(width: 26, height: 26)
+                        .foregroundStyle(isCurrent ? Color.white : space.color.color)
+                        .background(
+                            Circle().fill(isCurrent ? space.color.color : space.color.color.opacity(0.15))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(space.name)
+                .contextMenu { SpaceMenuContent(space: space) }
+            }
+
+            Divider().frame(height: 16)
 
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -861,52 +882,13 @@ struct TopTabBar: View {
                 }
             }
 
-            Button { state.newTabAndFocus() } label: { Image(systemName: "plus") }
-                .help("New Tab (⌘T)")
-            Button { state.panel = .history } label: { Image(systemName: "clock") }
-                .help("History (⌘Y)")
+            RailButton(symbol: "plus", help: "New Tab (⌘T)") { state.newTabAndFocus() }
+            RailButton(symbol: "clock", help: "History (⌘Y)") { state.panel = .history }
+            RailButton(symbol: "arrow.down.circle", help: "Downloads (⇧⌘J)") { state.panel = .downloads }
         }
-        .buttonStyle(.borderless)
         .padding(.horizontal, 8)
         .frame(height: 38)
         .background(.regularMaterial)
-    }
-}
-
-/// Current space's icon; click to switch spaces, make a new one, or manage the current one.
-struct SpaceMenuButton: View {
-    @EnvironmentObject var state: BrowserState
-    @EnvironmentObject var spaceStore: SpaceStore
-
-    var body: some View {
-        Menu {
-            ForEach(spaceStore.spaces) { space in
-                Button { state.switchSpace(space.id) } label: {
-                    Label(space.name, systemImage: space.symbol)
-                }
-            }
-            Divider()
-            Button("New Space…") {
-                if let name = promptForText(title: "New Space",
-                                            message: "For example: Work, School, a project name.",
-                                            confirm: "Create") {
-                    state.createSpace(name: name)
-                }
-            }
-            Menu("Manage “\(state.currentSpace.name)”") {
-                SpaceMenuContent(space: state.currentSpace)
-            }
-        } label: {
-            Image(systemName: state.currentSpace.symbol)
-                .font(.system(size: 12))
-                .frame(width: 26, height: 26)
-                .foregroundStyle(Color.white)
-                .background(Circle().fill(state.currentSpace.color.color))
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("Spaces: \(state.currentSpace.name)")
     }
 }
 
