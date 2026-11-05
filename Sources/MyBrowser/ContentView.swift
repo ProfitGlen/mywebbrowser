@@ -84,6 +84,10 @@ struct ContentView: View {
             ToolbarItemGroup(placement: .navigation) {
                 if let tab = state.selected { NavButtons(tab: tab) }
             }
+            // Spaces get their own wrapper, right of the back / forward buttons.
+            ToolbarItem(placement: .navigation) {
+                SpaceButtons()
+            }
             ToolbarItem(placement: .principal) {
                 if let tab = state.selected { ToolbarAddressField(tab: tab, focused: $addressFocused) }
             }
@@ -916,17 +920,13 @@ struct BookmarkStar: View {
     }
 }
 
-struct ToolbarUtilityButtons: View {
+/// The space icons (same as the sidebar's icon rail), in their own toolbar wrapper.
+struct SpaceButtons: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var spaceStore: SpaceStore
-    @AppStorage("tabLayout") private var tabLayout = "sidebar"
 
     var body: some View {
         HStack(spacing: 6) {
-            Button { tabLayout = "sidebar" } label: { Image(systemName: "sidebar.left") }
-                .help("Show tabs in sidebar (⌥⌘\\)")
-
-            // Same space icons as the sidebar's icon rail.
             ForEach(spaceStore.spaces) { space in
                 let isCurrent = space.id == state.currentSpaceID
                 Button { state.switchSpace(space.id) } label: {
@@ -942,7 +942,18 @@ struct ToolbarUtilityButtons: View {
                 .help(space.name)
                 .contextMenu { SpaceMenuContent(space: space) }
             }
+        }
+    }
+}
 
+struct ToolbarUtilityButtons: View {
+    @EnvironmentObject var state: BrowserState
+    @AppStorage("tabLayout") private var tabLayout = "sidebar"
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button { tabLayout = "sidebar" } label: { Image(systemName: "sidebar.left") }
+                .help("Show tabs in sidebar (⌥⌘\\)")
             Button { state.panel = .history } label: { Image(systemName: "clock") }
                 .help("History (⌘Y)")
             Button { state.panel = .downloads } label: { Image(systemName: "arrow.down.circle") }
