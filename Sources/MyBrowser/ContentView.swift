@@ -943,6 +943,12 @@ struct SpaceButtons: View {
                 .contextMenu { SpaceMenuContent(space: space) }
             }
         }
+        // Its own visible wrapper (a pill), with breathing room on both sides.
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Capsule().fill(Color.primary.opacity(0.07)))
+        .overlay(Capsule().stroke(Color.primary.opacity(0.12)))
+        .padding(.horizontal, 10)
     }
 }
 
