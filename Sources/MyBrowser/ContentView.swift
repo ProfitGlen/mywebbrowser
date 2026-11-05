@@ -27,7 +27,7 @@ struct ContentView: View {
     private var detail: some View {
         VStack(spacing: 0) {
             if let tab = state.selected {
-                Toolbar(tab: tab, addressFocused: $addressFocused)
+                if tabLayout != "top" { Toolbar(tab: tab, addressFocused: $addressFocused) }
                 ProgressBar(tab: tab)
                 if tabLayout == "top" && !bookmarks.items.isEmpty { BookmarksBar() }
                 if state.showFind { FindBar() }
@@ -48,7 +48,7 @@ struct ContentView: View {
     @ViewBuilder private var layout: some View {
         if tabLayout == "top" {
             VStack(spacing: 0) {
-                TopTabBar()
+                TopTabBar(addressFocused: $addressFocused)
                 Divider()
                 detail
             }
@@ -98,6 +98,8 @@ struct Toolbar: View {
     @EnvironmentObject var downloads: DownloadStore
     @ObservedObject var tab: Tab
     var addressFocused: FocusState<Bool>.Binding
+    /// Compact: sits inside the top tab bar (top layout) instead of on its own row.
+    var compact = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -121,6 +123,7 @@ struct Toolbar: View {
 
             TextField("Search or enter address", text: $state.addressText)
                 .textFieldStyle(.roundedBorder)
+                .frame(minWidth: compact ? 200 : nil, idealWidth: compact ? 340 : nil, maxWidth: compact ? 400 : nil)
                 .focused(addressFocused)
                 .onSubmit {
                     state.submitAddress()
@@ -136,13 +139,13 @@ struct Toolbar: View {
             .help("Bookmark this page (⌘D)")
             .disabled(tab.url == nil)
 
-            if !downloads.items.isEmpty {
+            if !compact && !downloads.items.isEmpty {
                 Button { state.panel = .downloads } label: { Image(systemName: "arrow.down.circle") }
                     .help("Downloads (⇧⌘J)")
             }
         }
         .buttonStyle(.borderless)
-        .padding(8)
+        .padding(compact ? 0 : 8)
         // Keep the address bar in sync with the page unless the user is typing.
         .onChange(of: tab.url) { newURL in
             if !addressFocused.wrappedValue { state.addressText = newURL?.absoluteString ?? "" }
@@ -837,9 +840,16 @@ struct TopTabBar: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var spaceStore: SpaceStore
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
+    var addressFocused: FocusState<Bool>.Binding
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
+            // Back / forward / reload, address bar and bookmark star share this one row.
+            if let tab = state.selected {
+                Toolbar(tab: tab, addressFocused: addressFocused, compact: true)
+                Divider().frame(height: 16)
+            }
+
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
@@ -930,7 +940,7 @@ struct TopTabItem: View {
             }
         }
         .padding(.horizontal, 8)
-        .frame(width: tab.isPinned ? 36 : 170, height: 28)
+        .frame(width: tab.isPinned ? 36 : 150, height: 28)
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(isSelected ? state.currentSpace.color.color.opacity(0.28)
