@@ -183,6 +183,8 @@ struct BrowserCommands: Commands {
                 .keyboardShortcut("y")
             Button("Show Downloads") { state?.panel = .downloads }
                 .keyboardShortcut("j", modifiers: [.command, .shift])
+            Button("Show Notes") { state?.panel = .notes }
+                .keyboardShortcut("n", modifiers: [.command, .option])
             Divider()
             Button("Clear History…") {
                 if confirmAction("Clear all browsing history?") { history.clear() }

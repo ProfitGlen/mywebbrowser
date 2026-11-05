@@ -38,7 +38,54 @@ struct SpaceSymbol: Identifiable {
         SpaceSymbol(name: "Design", symbol: "paintbrush.fill"),
         SpaceSymbol(name: "Nature", symbol: "leaf.fill"),
         SpaceSymbol(name: "Favorites", symbol: "star.fill"),
+        SpaceSymbol(name: "Heart", symbol: "heart.fill"),
+        SpaceSymbol(name: "Ideas", symbol: "lightbulb.fill"),
+        SpaceSymbol(name: "Fast", symbol: "bolt.fill"),
+        SpaceSymbol(name: "Hot", symbol: "flame.fill"),
+        SpaceSymbol(name: "Computer", symbol: "laptopcomputer"),
+        SpaceSymbol(name: "Web", symbol: "globe"),
+        SpaceSymbol(name: "Travel", symbol: "airplane"),
+        SpaceSymbol(name: "Car", symbol: "car.fill"),
+        SpaceSymbol(name: "Food", symbol: "fork.knife"),
+        SpaceSymbol(name: "Money", symbol: "dollarsign.circle.fill"),
+        SpaceSymbol(name: "Pets", symbol: "pawprint.fill"),
+        SpaceSymbol(name: "Night", symbol: "moon.fill"),
+        SpaceSymbol(name: "Day", symbol: "sun.max.fill"),
+        SpaceSymbol(name: "Chat", symbol: "bubble.left.fill"),
+        SpaceSymbol(name: "Mail", symbol: "envelope.fill"),
+        SpaceSymbol(name: "Folder", symbol: "folder.fill"),
+        SpaceSymbol(name: "Goals", symbol: "flag.fill"),
+        SpaceSymbol(name: "Tools", symbol: "wrench.and.screwdriver.fill"),
+        SpaceSymbol(name: "Puzzle", symbol: "puzzlepiece.fill"),
+        SpaceSymbol(name: "Sports", symbol: "sportscourt.fill"),
+        SpaceSymbol(name: "Movies", symbol: "film"),
     ]
+}
+
+/// A space's icon: an Apple symbol ("briefcase.fill") or an emoji saved as "emoji:😀".
+struct SpaceIcon: View {
+    let symbol: String
+
+    var body: some View {
+        if symbol.hasPrefix("emoji:") {
+            Text(String(symbol.dropFirst("emoji:".count)))
+        } else {
+            Image(systemName: symbol)
+        }
+    }
+}
+
+/// Space name with its icon, for menus (menus can only show an emoji as text).
+struct SpaceMenuLabel: View {
+    let space: Space
+
+    var body: some View {
+        if space.symbol.hasPrefix("emoji:") {
+            Text("\(String(space.symbol.dropFirst("emoji:".count)))  \(space.name)")
+        } else {
+            Label(space.name, systemImage: space.symbol)
+        }
+    }
 }
 
 /// A named group of tabs (and pinned tabs), e.g. one per project.

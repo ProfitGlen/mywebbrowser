@@ -3,7 +3,7 @@ import WebKit
 import Combine
 
 enum Panel: String, Identifiable {
-    case history, downloads
+    case history, downloads, notes
     var id: String { rawValue }
 }
 

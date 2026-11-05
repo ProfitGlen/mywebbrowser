@@ -3,7 +3,7 @@
 A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 
 ## Features
-- **Spaces**: separate groups of tabs for different things you're working on (Work, School, a project). Each space has its own tabs and pinned tabs, a color and an icon. Switch with the icons at the bottom of the sidebar or Ctrl+1 to Ctrl+9. Right-click a space to rename it, change its color or icon, or delete it. Right-click a tab > Move to Space. Your last space and each space's last tab are remembered. Bookmarks, history and downloads are shared across spaces.
+- **Spaces**: separate groups of tabs for different things you're working on (Work, School, a project). Each space has its own tabs and pinned tabs, a color and an icon. Switch with the icons at the bottom of the sidebar or Ctrl+1 to Ctrl+9. Right-click a space to rename it, change its color, or pick an icon (a long list, your own emoji, or any Apple symbol name), or delete it. Right-click a tab > Move to Space. Your last space and each space's last tab are remembered. Bookmarks, history and downloads are shared across spaces.
 - **Two layouts**: tabs in a vertical sidebar, or across the top (a real window toolbar like Safari with back/forward, the address bar and buttons in the title bar row, tab strip below it, bookmarks row under that). Switch in Settings or with Opt+Cmd+\\.
 - **Collapsible sidebar**: shrink it to a narrow icon rail with the sidebar button or Cmd+\\ (tabs and bookmarks show as lettered icons, spaces and History/Downloads stay at the bottom). Drag the edge of the expanded sidebar to resize it. In Settings, turn on "Shrink sidebar to icons automatically" to collapse it after you click a tab or bookmark in the sidebar, or click the page.
 - **Tabs** in a vertical sidebar (new, close, switch, drag to reorder, loading spinner). Tabs, bookmarks and the icon rail show each site's own icon
@@ -12,6 +12,7 @@ A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 - Back / forward / reload / stop, swipe gestures, page load progress bar
 - Cmd+click and `target=_blank` links open in a new tab
 - **Bookmarks**: star button or Cmd+D. Right-click a bookmark > Move to Folder to create and use **folders**. Saved to `~/Library/Application Support/MyBrowser/bookmarks.json`
+- **Page notes**: the note button in the toolbar opens a private notepad for the current page (saved automatically, only on this Mac, never shared, not in private windows). Opt+Cmd+N lists all your notes. Saved to `~/Library/Application Support/MyBrowser/notes.json`
 - **History**: Cmd+Y. Searchable, grouped by day
 - **Downloads**: files WebKit can't display are saved to ~/Downloads. Cmd+Shift+J shows progress, Open and Show in Finder
 - **Find in page**: Cmd+F, Cmd+G / Cmd+Shift+G for next / previous, Esc to close

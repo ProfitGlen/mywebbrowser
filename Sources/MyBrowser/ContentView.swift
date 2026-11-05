@@ -115,7 +115,10 @@ struct ContentView: View {
                 if let tab = state.selected { ToolbarAddressField(tab: tab, focused: $addressFocused) }
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                if let tab = state.selected { BookmarkStar(tab: tab) }
+                if let tab = state.selected {
+                    BookmarkStar(tab: tab)
+                    if !state.isPrivate { NoteButton(tab: tab) }
+                }
                 ToolbarUtilityButtons()
             }
         }
@@ -131,6 +134,7 @@ struct ContentView: View {
             switch panel {
             case .history: HistoryPanel()
             case .downloads: DownloadsPanel()
+            case .notes: NotesPanel()
             }
         }
     }
@@ -184,6 +188,8 @@ struct Toolbar: View {
             }
             .help("Bookmark this page (⌘D)")
             .disabled(tab.url == nil)
+
+            if !state.isPrivate { NoteButton(tab: tab) }
 
             if !compact && !downloads.items.isEmpty {
                 Button { state.panel = .downloads } label: { Image(systemName: "arrow.down.circle") }
@@ -365,7 +371,7 @@ struct SpaceHeader: View {
     var body: some View {
         let space = state.currentSpace
         HStack(spacing: 8) {
-            Image(systemName: space.symbol).foregroundStyle(space.color.color)
+            SpaceIcon(symbol: space.symbol).foregroundStyle(space.color.color)
             Text(space.name).font(.headline).lineLimit(1)
             Spacer(minLength: 0)
             Button { state.toggleSidebar() } label: { Image(systemName: "sidebar.left") }
@@ -388,7 +394,7 @@ struct SpaceSwitcher: View {
                 ForEach(spaceStore.spaces) { space in
                     let isCurrent = space.id == state.currentSpaceID
                     Button { state.switchSpace(space.id) } label: {
-                        Image(systemName: space.symbol)
+                        SpaceIcon(symbol: space.symbol)
                             .font(.system(size: 12))
                             .frame(width: 26, height: 26)
                             .foregroundStyle(isCurrent ? Color.white : space.color.color)
@@ -437,6 +443,30 @@ struct SpaceMenuContent: View {
             ForEach(SpaceSymbol.all) { item in
                 Button { spaceStore.setStyle(space.id, symbol: item.symbol) } label: {
                     Label(item.name, systemImage: item.symbol)
+                }
+            }
+            Divider()
+            Button("Your Own Emoji…") {
+                if let text = promptForText(title: "Space Emoji",
+                                            message: "Type or paste one emoji. Tip: press Control+Command+Space for the emoji picker.",
+                                            confirm: "Use Emoji"),
+                   let first = text.trimmingCharacters(in: .whitespaces).first {
+                    spaceStore.setStyle(space.id, symbol: "emoji:\(first)")
+                }
+            }
+            Button("Any Apple Symbol by Name…") {
+                if let text = promptForText(title: "Symbol Name",
+                                            message: "The name of any SF Symbol, for example: rocket.fill or books.vertical.fill",
+                                            confirm: "Use Symbol") {
+                    let name = text.trimmingCharacters(in: .whitespaces)
+                    if NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil {
+                        spaceStore.setStyle(space.id, symbol: name)
+                    } else {
+                        let alert = NSAlert()
+                        alert.messageText = "Couldn't find a symbol called “\(name)”."
+                        alert.informativeText = "Check the spelling, or pick one from the list."
+                        alert.runModal()
+                    }
                 }
             }
         }
@@ -625,7 +655,7 @@ struct TabRow: View {
                 Menu("Move to Space") {
                     ForEach(spaceStore.spaces.filter { $0.id != tab.spaceID }) { space in
                         Button { state.move(tab, toSpace: space.id) } label: {
-                            Label(space.name, systemImage: space.symbol)
+                            SpaceMenuLabel(space: space)
                         }
                     }
                 }
@@ -706,7 +736,7 @@ struct CollapsedSidebar: View {
                 ForEach(spaceStore.spaces) { space in
                     let isCurrent = space.id == state.currentSpaceID
                     Button { state.switchSpace(space.id) } label: {
-                        Image(systemName: space.symbol)
+                        SpaceIcon(symbol: space.symbol)
                             .font(.system(size: 12))
                             .frame(width: 26, height: 26)
                             .foregroundStyle(isCurrent ? Color.white : space.color.color)
@@ -957,7 +987,7 @@ struct SpaceButtons: View {
             ForEach(spaceStore.spaces) { space in
                 let isCurrent = space.id == state.currentSpaceID
                 Button { state.switchSpace(space.id) } label: {
-                    Image(systemName: space.symbol)
+                    SpaceIcon(symbol: space.symbol)
                         .font(.system(size: 12))
                         .frame(width: 24, height: 24)
                         .foregroundStyle(isCurrent ? Color.white : space.color.color)
@@ -1105,7 +1135,7 @@ struct TopTabItem: View {
                 Menu("Move to Space") {
                     ForEach(spaceStore.spaces.filter { $0.id != tab.spaceID }) { space in
                         Button { state.move(tab, toSpace: space.id) } label: {
-                            Label(space.name, systemImage: space.symbol)
+                            SpaceMenuLabel(space: space)
                         }
                     }
                 }
