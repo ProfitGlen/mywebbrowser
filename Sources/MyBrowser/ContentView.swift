@@ -840,27 +840,6 @@ struct TopTabBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            RailButton(symbol: "sidebar.left", help: "Show tabs in sidebar (⌥⌘\\)") { tabLayout = "sidebar" }
-
-            // Same space icons as the sidebar's icon rail.
-            ForEach(spaceStore.spaces) { space in
-                let isCurrent = space.id == state.currentSpaceID
-                Button { state.switchSpace(space.id) } label: {
-                    Image(systemName: space.symbol)
-                        .font(.system(size: 12))
-                        .frame(width: 26, height: 26)
-                        .foregroundStyle(isCurrent ? Color.white : space.color.color)
-                        .background(
-                            Circle().fill(isCurrent ? space.color.color : space.color.color.opacity(0.15))
-                        )
-                }
-                .buttonStyle(.plain)
-                .help(space.name)
-                .contextMenu { SpaceMenuContent(space: space) }
-            }
-
-            Divider().frame(height: 16)
-
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
@@ -883,6 +862,28 @@ struct TopTabBar: View {
             }
 
             RailButton(symbol: "plus", help: "New Tab (⌘T)") { state.newTabAndFocus() }
+
+            Divider().frame(height: 16)
+
+            RailButton(symbol: "sidebar.left", help: "Show tabs in sidebar (⌥⌘\\)") { tabLayout = "sidebar" }
+
+            // Same space icons as the sidebar's icon rail.
+            ForEach(spaceStore.spaces) { space in
+                let isCurrent = space.id == state.currentSpaceID
+                Button { state.switchSpace(space.id) } label: {
+                    Image(systemName: space.symbol)
+                        .font(.system(size: 12))
+                        .frame(width: 26, height: 26)
+                        .foregroundStyle(isCurrent ? Color.white : space.color.color)
+                        .background(
+                            Circle().fill(isCurrent ? space.color.color : space.color.color.opacity(0.15))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(space.name)
+                .contextMenu { SpaceMenuContent(space: space) }
+            }
+
             RailButton(symbol: "clock", help: "History (⌘Y)") { state.panel = .history }
             RailButton(symbol: "arrow.down.circle", help: "Downloads (⇧⌘J)") { state.panel = .downloads }
         }
