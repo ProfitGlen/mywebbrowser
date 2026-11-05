@@ -8,6 +8,28 @@ struct WebViewContainer: NSViewRepresentable {
     func updateNSView(_ nsView: WKWebView, context: Context) {}
 }
 
+/// Top layout: let the controls share the window's title bar row (like Safari) and hide the title.
+struct WindowConfigurator: NSViewRepresentable {
+    let fullBleed: Bool
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        let fullBleed = fullBleed
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            window.titlebarAppearsTransparent = fullBleed
+            window.titleVisibility = fullBleed ? .hidden : .visible
+            window.isMovableByWindowBackground = fullBleed
+            if fullBleed {
+                window.styleMask.insert(.fullSizeContentView)
+            } else {
+                window.styleMask.remove(.fullSizeContentView)
+            }
+        }
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var bookmarks: BookmarkStore
@@ -54,6 +76,7 @@ struct ContentView: View {
                 Divider()
                 detail
             }
+            .ignoresSafeArea(.container, edges: .top)
         } else {
             HStack(spacing: 0) {
                 Group {
@@ -80,6 +103,7 @@ struct ContentView: View {
 
     var body: some View {
         layout
+        .background(WindowConfigurator(fullBleed: tabLayout == "top"))
         .onReceive(NotificationCenter.default.publisher(for: .focusAddressBar)) { _ in
             addressFocused = true
         }
@@ -877,8 +901,9 @@ struct TopControlsBar: View {
             RailButton(symbol: "clock", help: "History (⌘Y)") { state.panel = .history }
             RailButton(symbol: "arrow.down.circle", help: "Downloads (⇧⌘J)") { state.panel = .downloads }
         }
-        .padding(.horizontal, 8)
-        .frame(height: 40)
+        .padding(.leading, 78) // room for the red / yellow / green window buttons
+        .padding(.trailing, 8)
+        .frame(height: 38)
         .background(.regularMaterial)
     }
 }
