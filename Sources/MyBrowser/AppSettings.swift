@@ -56,6 +56,7 @@ struct SettingsView: View {
     @AppStorage("autoCollapseSidebar") private var autoCollapseSidebar = false
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
     @AppStorage("keepSignedIn") private var keepSignedIn = true
+    @AppStorage("blockYouTubeAds") private var blockYouTubeAds = true
     @EnvironmentObject var history: HistoryStore
     @EnvironmentObject var updater: Updater
     @State private var message = ""
@@ -93,6 +94,13 @@ struct SettingsView: View {
                 .disabled(updater.isChecking)
             }
 
+            Section("Ads") {
+                Toggle("Block YouTube ads (experimental)", isOn: $blockYouTubeAds)
+                Text("Best effort. YouTube changes often, so this may stop working at times. Applies to tabs opened after you change it; reload open YouTube tabs.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Privacy") {
                 Toggle("Keep me signed in across restarts", isOn: $keepSignedIn)
                 Text("Saves the temporary logins sites use, so quitting or updating MyBrowser doesn't sign you out. Sites can still end a login on their side. Turn off on a shared Mac.")
@@ -119,6 +127,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 700)
+        .frame(width: 480, height: 780)
     }
 }

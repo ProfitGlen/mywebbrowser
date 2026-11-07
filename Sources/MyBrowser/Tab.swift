@@ -60,6 +60,7 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
         let config = WKWebViewConfiguration()
         config.websiteDataStore = dataStore // .default() persists, .nonPersistent() is private
         config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
+        YouTubeAdBlocker.install(in: config.userContentController)
         return config
     }
 
