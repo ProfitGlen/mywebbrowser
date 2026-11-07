@@ -1098,17 +1098,16 @@ struct TopTabItem: View {
                     .frame(width: 14, height: 14)
                     .foregroundStyle(.secondary)
             }
-            if !tab.isPinned {
-                Text(tab.title).lineLimit(1).truncationMode(.tail)
-                Spacer(minLength: 0)
-                if hovering || isSelected {
-                    Button { state.close(tab) } label: { Image(systemName: "xmark").font(.caption) }
-                        .buttonStyle(.plain)
-                }
+            Text(tab.title).lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 0)
+            // Pinned tabs are full size too; they just have no close button (use right-click > Close Tab).
+            if (hovering || isSelected) && !tab.isPinned {
+                Button { state.close(tab) } label: { Image(systemName: "xmark").font(.caption) }
+                    .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 8)
-        .frame(width: tab.isPinned ? 36 : 180, height: 28)
+        .frame(width: 180, height: 28)
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(isSelected ? state.currentSpace.color.color.opacity(0.28)
