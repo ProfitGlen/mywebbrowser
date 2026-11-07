@@ -57,6 +57,7 @@ struct SettingsView: View {
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
     @AppStorage("keepSignedIn") private var keepSignedIn = true
     @AppStorage("blockYouTubeAds") private var blockYouTubeAds = true
+    @AppStorage("skipSponsors") private var skipSponsors = true
     @EnvironmentObject var history: HistoryStore
     @EnvironmentObject var updater: Updater
     @State private var message = ""
@@ -101,6 +102,13 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("YouTube sponsors") {
+                Toggle("Skip sponsored segments", isOn: $skipSponsors)
+                Text("Uses SponsorBlock, a community database (sponsor.ajay.app). It skips sponsor reads, self-promotion and subscribe reminders. For each video, only a short code made from the video ID is sent to SponsorBlock, not the video itself. Applies to tabs opened after you change it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Privacy") {
                 Toggle("Keep me signed in across restarts", isOn: $keepSignedIn)
                 Text("Saves the temporary logins sites use, so quitting or updating MyBrowser doesn't sign you out. Sites can still end a login on their side. Turn off on a shared Mac.")
@@ -127,6 +135,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 780)
+        .frame(width: 480, height: 860)
     }
 }

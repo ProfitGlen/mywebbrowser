@@ -60,7 +60,7 @@ enum YouTubeAdBlocker {
           try {
             var first = args[0];
             var url = (typeof first === 'string' ? first : (first && first.url)) || '';
-            if (/\/youtubei\/v1\/(player|next|browse|reel)/.test(url)) {
+            if (/\/youtubei\/v1\/(player|reel\/reel_item_watch)/.test(url)) {
               return promise.then(function (res) {
                 return res.clone().json().then(function (json) {
                   clean(json);
