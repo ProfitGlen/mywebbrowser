@@ -38,9 +38,14 @@ struct ContentView: View {
     @FocusState private var addressFocused: Bool
 
     /// Dropdown under the address bar while typing (hidden when the text is just the current URL).
+    @ObservedObject private var searchHistory = SearchHistoryStore.shared
+
     private var suggestions: [Suggestion] {
-        guard addressFocused, state.addressText != state.selected?.url?.absoluteString else { return [] }
-        return Suggestions.matching(state.addressText, bookmarks: bookmarks.items, history: history.entries)
+        guard state.addressEditing, state.addressText != state.selected?.url?.absoluteString else { return [] }
+        return Suggestions.matching(state.addressText,
+                                    bookmarks: bookmarks.items,
+                                    history: history.entries,
+                                    searches: searchHistory.matching(state.addressText))
     }
 
     @AppStorage("sidebarWidth") private var sidebarWidth = 240.0
@@ -58,6 +63,7 @@ struct ContentView: View {
                     WebViewContainer(tab: tab).id(tab.id)
                     if !suggestions.isEmpty {
                         SuggestionsList(suggestions: suggestions) { url in
+                            state.addressEditing = false
                             state.openURL(url)
                             addressFocused = false
                         }
@@ -171,7 +177,7 @@ struct Toolbar: View {
                     .background(Capsule().fill(Color.purple.opacity(0.25)))
             }
 
-            TextField("Search or enter address", text: $state.addressText)
+            TextField("Search or enter address", text: state.addressBinding)
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: compact ? 200 : nil, idealWidth: compact ? 520 : nil, maxWidth: compact ? 760 : nil)
                 .focused(addressFocused)
@@ -230,14 +236,17 @@ struct SuggestionsList: View {
             ForEach(suggestions) { suggestion in
                 Button { onPick(suggestion.url) } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: suggestion.isBookmark ? "star.fill" : "clock")
+                        Image(systemName: suggestion.isSearch ? "magnifyingglass"
+                              : suggestion.isBookmark ? "star.fill" : "clock")
                             .foregroundStyle(suggestion.isBookmark ? Color.yellow : Color.secondary)
                             .frame(width: 16)
                         Text(suggestion.title).lineLimit(1)
-                        Text(suggestion.url.absoluteString)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                        if !suggestion.isSearch {
+                            Text(suggestion.url.absoluteString)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 10)
@@ -603,26 +612,48 @@ struct TabRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if tab.isLoading {
-                ProgressView().controlSize(.small).frame(width: 14, height: 14)
-            } else if let icon = icons.image(for: tab.url?.host) {
-                Image(nsImage: icon)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 16, height: 16)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-            } else {
-                Image(systemName: tab.isPinned ? "pin.fill" : "globe")
-                    .font(.caption)
-                    .frame(width: 14, height: 14)
-                    .foregroundStyle(.secondary)
+            // Icon and title: this part selects the tab, starts drags and accepts drops.
+            HStack(spacing: 8) {
+                if tab.isLoading {
+                    ProgressView().controlSize(.small).frame(width: 14, height: 14)
+                } else if let icon = icons.image(for: tab.url?.host) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 16, height: 16)
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                } else {
+                    Image(systemName: tab.isPinned ? "pin.fill" : "globe")
+                        .font(.caption)
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(.secondary)
+                }
+                Text(tab.title).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 0)
             }
-            Text(tab.title).lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: 0)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                state.select(tab)
+                state.sidebarItemClicked()
+            }
+            .draggable(tab.id.uuidString)
+            .dropDestination(for: String.self) { items, _ in
+                guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+                state.moveTab(id, onto: tab)
+                return true
+            } isTargeted: { dropTargeted = $0 }
+
+            // Close button is separate from the drag/tap area above, so one click always closes the tab.
             if (hovering || isSelected) && !tab.isPinned {
-                Button { state.close(tab) } label: { Image(systemName: "xmark").font(.caption) }
-                    .buttonStyle(.plain)
+                Button { state.close(tab) } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Close Tab")
             }
         }
         .padding(.horizontal, 8)
@@ -632,21 +663,10 @@ struct TabRow: View {
                 .fill(isSelected ? state.currentSpace.color.color.opacity(0.28)
                       : hovering ? Color.primary.opacity(0.08) : .clear)
         )
-        .contentShape(Rectangle())
         .overlay(alignment: .top) {
             if dropTargeted { Rectangle().fill(state.currentSpace.color.color).frame(height: 2) }
         }
-        .onTapGesture {
-            state.select(tab)
-            state.sidebarItemClicked()
-        }
         .onHover { hovering = $0 }
-        .draggable(tab.id.uuidString)
-        .dropDestination(for: String.self) { items, _ in
-            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
-            state.moveTab(id, onto: tab)
-            return true
-        } isTargeted: { dropTargeted = $0 }
         .contextMenu {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") { state.togglePin(tab) }
             Button("Bookmark This Page") { bookmarks.toggle(title: tab.title, url: tab.url) }
@@ -946,7 +966,7 @@ struct ToolbarAddressField: View {
     var focused: FocusState<Bool>.Binding
 
     var body: some View {
-        TextField("Search or enter address", text: $state.addressText)
+        TextField("Search or enter address", text: state.addressBinding)
             .textFieldStyle(.roundedBorder)
             .frame(minWidth: 240, idealWidth: 560, maxWidth: 900)
             .focused(focused)
@@ -1082,31 +1102,54 @@ struct TopTabItem: View {
     @State private var dropTargeted = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            if tab.isLoading {
-                ProgressView().controlSize(.small).frame(width: 14, height: 14)
-            } else if let icon = icons.image(for: tab.url?.host) {
-                Image(nsImage: icon)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 16, height: 16)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-            } else {
-                Image(systemName: tab.isPinned ? "pin.fill" : "globe")
-                    .font(.caption)
-                    .frame(width: 14, height: 14)
-                    .foregroundStyle(.secondary)
+        ZStack(alignment: .leading) {
+            // Icon and title: this part selects the tab, starts drags and accepts drops.
+            HStack(spacing: 6) {
+                Group {
+                    if tab.isLoading {
+                        ProgressView().controlSize(.small)
+                    } else if let icon = icons.image(for: tab.url?.host) {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    } else {
+                        Image(systemName: tab.isPinned ? "pin.fill" : "globe")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 16, height: 16)
+                .opacity(hovering && !tab.isPinned ? 0 : 1) // the close button takes its place on hover
+                Text(tab.title).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 0)
             }
-            Text(tab.title).lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: 0)
-            // Pinned tabs are full size too; they just have no close button (use right-click > Close Tab).
-            if (hovering || isSelected) && !tab.isPinned {
-                Button { state.close(tab) } label: { Image(systemName: "xmark").font(.caption) }
-                    .buttonStyle(.plain)
+            .padding(.horizontal, 8)
+            .frame(width: 180, height: 28)
+            .contentShape(Rectangle())
+            .onTapGesture { state.select(tab) }
+            .draggable(tab.id.uuidString)
+            .dropDestination(for: String.self) { items, _ in
+                guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+                state.moveTab(id, onto: tab)
+                return true
+            } isTargeted: { dropTargeted = $0 }
+
+            // Close button, on the left. It sits above (not inside) the drag/tap area, so one click always closes.
+            if hovering && !tab.isPinned {
+                Button { state.close(tab) } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(Color.primary.opacity(0.14)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 7)
+                .help("Close Tab")
             }
         }
-        .padding(.horizontal, 8)
         .frame(width: 180, height: 28)
         .background(
             RoundedRectangle(cornerRadius: 7)
@@ -1116,15 +1159,7 @@ struct TopTabItem: View {
         .overlay(alignment: .leading) {
             if dropTargeted { Rectangle().fill(state.currentSpace.color.color).frame(width: 2) }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { state.select(tab) }
         .onHover { hovering = $0 }
-        .draggable(tab.id.uuidString)
-        .dropDestination(for: String.self) { items, _ in
-            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
-            state.moveTab(id, onto: tab)
-            return true
-        } isTargeted: { dropTargeted = $0 }
         .help(tab.title)
         .contextMenu {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") { state.togglePin(tab) }

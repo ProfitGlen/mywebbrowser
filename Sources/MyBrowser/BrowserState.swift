@@ -18,6 +18,8 @@ final class BrowserState: ObservableObject {
         didSet { UserDefaults.standard.set(sidebarCollapsed, forKey: "sidebarCollapsed") }
     }
     @Published var addressText = ""
+    /// True while the user is typing in the address bar (drives the suggestions dropdown).
+    @Published var addressEditing = false
     @Published var panel: Panel?
 
     @Published var showFind = false
@@ -147,6 +149,7 @@ final class BrowserState: ObservableObject {
         selectedID = tab.id
         lastSelected[tab.spaceID] = tab.id
         addressText = tab.url?.absoluteString ?? ""
+        addressEditing = false
         showFind = false
     }
 
@@ -269,11 +272,12 @@ final class BrowserState: ObservableObject {
     }
 
     private func handleMouseDown(_ event: NSEvent) {
-        guard autoCollapseSidebar, !sidebarCollapsed,
-              let webView = selected?.webView,
+        guard let webView = selected?.webView,
               let content = event.window?.contentView,
               let hit = content.hitTest(event.locationInWindow),
               hit.isDescendant(of: webView) else { return }
+        if addressEditing { addressEditing = false } // clicking the page closes the suggestions
+        guard autoCollapseSidebar, !sidebarCollapsed else { return }
         collapseSidebar()
     }
 
@@ -336,7 +340,25 @@ final class BrowserState: ObservableObject {
     func submitAddress() {
         let text = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let tab = selected else { return }
+        addressEditing = false
+        if !isPrivate, BrowserState.isSearch(text) { SearchHistoryStore.shared.add(text) }
         tab.load(BrowserState.resolve(text))
+    }
+
+    /// Text field binding that marks the address bar as "being edited" when the user types.
+    var addressBinding: Binding<String> {
+        Binding(get: { self.addressText },
+                set: { self.addressText = $0; self.addressEditing = true })
+    }
+
+    /// True when the typed text would be a web search (not an address).
+    static func isSearch(_ input: String) -> Bool {
+        if let url = URL(string: input), let scheme = url.scheme,
+           ["http", "https", "file", "about"].contains(scheme) { return false }
+        if !input.contains(" "), input.contains("."),
+           let url = URL(string: "https://" + input), url.host != nil { return false }
+        if input == "localhost" || input.hasPrefix("localhost:") { return false }
+        return true
     }
 
     static func resolve(_ input: String) -> URL {

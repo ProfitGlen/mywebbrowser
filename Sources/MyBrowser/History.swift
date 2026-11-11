@@ -45,6 +45,7 @@ final class HistoryStore: ObservableObject {
 
     func clear() {
         entries.removeAll()
+        SearchHistoryStore.shared.clear()
         scheduleSave()
     }
 
@@ -73,12 +74,14 @@ struct Suggestion: Identifiable {
     let url: URL
     let title: String
     let isBookmark: Bool
-    var id: String { url.absoluteString }
+    var isSearch = false
+    var id: String { (isSearch ? "search:" : "") + url.absoluteString }
 }
 
 enum Suggestions {
     /// Bookmarks first, then history, de-duplicated by URL.
-    static func matching(_ query: String, bookmarks: [Bookmark], history: [HistoryEntry], limit: Int = 6) -> [Suggestion] {
+    static func matching(_ query: String, bookmarks: [Bookmark], history: [HistoryEntry],
+                         searches: [String] = [], limit: Int = 8) -> [Suggestion] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard !q.isEmpty else { return [] }
 
@@ -91,6 +94,11 @@ enum Suggestions {
                 seen.insert(key)
                 result.append(Suggestion(url: b.url, title: b.title, isBookmark: true))
             }
+        }
+        // Searches you've typed before.
+        for text in searches where result.count < limit {
+            result.append(Suggestion(url: AppSettings.searchURL(for: text), title: text,
+                                     isBookmark: false, isSearch: true))
         }
         for h in history where result.count < limit {
             let key = h.url.absoluteString

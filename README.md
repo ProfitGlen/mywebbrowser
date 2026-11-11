@@ -8,7 +8,7 @@ A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 - **Collapsible sidebar**: shrink it to a narrow icon rail with the sidebar button or Cmd+\\ (tabs and bookmarks show as lettered icons, spaces and History/Downloads stay at the bottom). Drag the edge of the expanded sidebar to resize it. In Settings, turn on "Shrink sidebar to icons automatically" to collapse it after you click a tab or bookmark in the sidebar, or click the page.
 - **Tabs** in a vertical sidebar (new, close, switch, drag to reorder, loading spinner). Tabs, bookmarks and the icon rail show each site's own icon
 - **Pinned tabs**: right-click a tab or press Opt+Cmd+P. They sit at the top of that space and come back on launch. Closing a pinned tab (right-click > Close Tab) unpins it.
-- **Address bar** takes a URL or a search term, with a **suggestions** dropdown from your bookmarks and history
+- **Address bar** takes a URL or a search term, with a **suggestions** dropdown from your bookmarks, the searches you typed before, and your history
 - Back / forward / reload / stop, swipe gestures, page load progress bar
 - Cmd+click and `target=_blank` links open in a new tab
 - **Bookmarks**: star button or Cmd+D. Right-click a bookmark > Move to Folder to create and use **folders**. Saved to `~/Library/Application Support/MyBrowser/bookmarks.json`
