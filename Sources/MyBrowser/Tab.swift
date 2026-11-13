@@ -80,6 +80,7 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
     static func makeConfiguration(dataStore: WKWebsiteDataStore) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = dataStore // .default() persists, .nonPersistent() is private
+        config.preferences.isElementFullscreenEnabled = true // YouTube / video full screen button
         config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
         YouTubeAdBlocker.install(in: config.userContentController)
         SponsorBlock.install(in: config.userContentController)
