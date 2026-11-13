@@ -91,8 +91,6 @@ final class BrowserState: ObservableObject {
         }
     }
 
-    deinit { saverTimer?.invalidate() }
-
     private var saverTimer: Timer?
 
     /// Frees the memory of tabs unused for the chosen time. Tabs and Spaces stay exactly where
@@ -265,6 +263,7 @@ final class BrowserState: ObservableObject {
 
     deinit {
         if let monitor = clickMonitor { NSEvent.removeMonitor(monitor) }
+        saverTimer?.invalidate()
     }
 
     func toggleSidebar() {

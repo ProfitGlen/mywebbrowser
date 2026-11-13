@@ -39,16 +39,19 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
     private(set) var isDiscarded = false
 
     /// Frees the page's memory and web process, keeping the tab (title, icon, address) in place.
-    /// Returns false if the tab was left alone (loading, playing audio/video, or nothing to restore).
-    @discardableResult
-    func discard() -> Bool {
+    /// Leaves the tab alone if it is loading or playing audio/video.
+    func discard() {
         guard !isDiscarded, pendingURL == nil, !webView.isLoading,
-              webView.mediaPlaybackState != .playing,
-              let current = webView.url, current.scheme == "http" || current.scheme == "https" else { return false }
-        pendingURL = current
-        isDiscarded = true
-        webView.load(URLRequest(url: URL(string: "about:blank")!))
-        return true
+              let current = webView.url, current.scheme == "http" || current.scheme == "https" else { return }
+        let js = "Array.from(document.querySelectorAll('video,audio')).some(function(m){return !m.paused && !m.ended;})"
+        webView.evaluateJavaScript(js) { [weak self] result, _ in
+            guard let self, !self.isDiscarded, self.pendingURL == nil,
+                  Date().timeIntervalSince(self.lastActive) > 5 else { return }
+            if let playing = result as? Bool, playing { return }
+            self.pendingURL = current
+            self.isDiscarded = true
+            self.webView.load(URLRequest(url: URL(string: "about:blank")!))
+        }
     }
 
     /// Called when a page opens a popup (window.open). Must return a tab built from the given configuration.
