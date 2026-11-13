@@ -22,10 +22,21 @@ final class HistoryStore: ObservableObject {
         return dir.appendingPathComponent("history.json")
     }()
 
-    init() { load() }
+    init() {
+        load()
+        purgeHidden()
+    }
+
+    /// Removes saved visits to sites you chose to hide.
+    func purgeHidden() {
+        let before = entries.count
+        entries.removeAll { HiddenSitesStore.shared.matches($0.url.host) }
+        if entries.count != before { scheduleSave() }
+    }
 
     func add(title: String, url: URL) {
         guard let scheme = url.scheme, ["http", "https"].contains(scheme) else { return }
+        guard !HiddenSitesStore.shared.matches(url.host) else { return } // hidden sites are never saved
         let name = title.isEmpty ? (url.host ?? url.absoluteString) : title
         // Reloads / redirects to the same page just refresh the newest entry.
         if let first = entries.first, first.url == url {
@@ -204,6 +215,12 @@ struct HistoryRow: View {
         .contextMenu {
             Button("Open") { open() }
             Button("Delete", role: .destructive) { history.remove(entry) }
+            if let host = entry.url.host {
+                Divider()
+                Button("Never Save \(host) in History") {
+                    if HiddenSitesStore.shared.add(host) != nil { history.purgeHidden() }
+                }
+            }
         }
     }
 }

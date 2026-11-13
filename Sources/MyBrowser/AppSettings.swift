@@ -56,11 +56,23 @@ struct SettingsView: View {
     @AppStorage("autoCollapseSidebar") private var autoCollapseSidebar = false
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
     @AppStorage("keepSignedIn") private var keepSignedIn = true
+    @ObservedObject private var hiddenSites = HiddenSitesStore.shared
+    @State private var newHiddenSite = ""
     @AppStorage("blockYouTubeAds") private var blockYouTubeAds = true
     @AppStorage("skipSponsors") private var skipSponsors = true
     @EnvironmentObject var history: HistoryStore
     @EnvironmentObject var updater: Updater
     @State private var message = ""
+
+    private func addHiddenSite() {
+        if hiddenSites.add(newHiddenSite) != nil {
+            history.purgeHidden()
+            newHiddenSite = ""
+            message = ""
+        } else {
+            message = "That doesn't look like a site address. Try something like example.com."
+        }
+    }
 
     var body: some View {
         Form {
@@ -109,6 +121,27 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Hidden from history") {
+                ForEach(hiddenSites.sites, id: \.self) { site in
+                    HStack {
+                        Text(site)
+                        Spacer()
+                        Button { hiddenSites.remove(site) } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                            .help("Stop hiding \(site)")
+                    }
+                }
+                HStack {
+                    TextField("Add a site, e.g. example.com", text: $newHiddenSite)
+                        .onSubmit(addHiddenSite)
+                    Button("Add", action: addHiddenSite)
+                        .disabled(newHiddenSite.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                Text("Visits to these sites, and everything on them (including subdomains like mail.example.com), are never saved to history or shown in suggestions. Adding a site also removes its existing history. Bookmarks aren't affected. You can also right-click any item in History > Show History.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Privacy") {
                 Toggle("Keep me signed in across restarts", isOn: $keepSignedIn)
                 Text("Saves the temporary logins sites use, so quitting or updating MyBrowser doesn't sign you out. Sites can still end a login on their side. Turn off on a shared Mac.")
@@ -135,6 +168,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 860)
+        .frame(width: 480, height: 900)
     }
 }

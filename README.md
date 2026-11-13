@@ -15,6 +15,7 @@ A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 - **Page notes**: the note button in the toolbar opens a private notepad for the current page (saved automatically, only on this Mac, never shared, not in private windows). Opt+Cmd+N lists all your notes. Saved to `~/Library/Application Support/MyBrowser/notes.json`
 - **YouTube ad blocking** (experimental, Settings > Ads): removes ad data from the player, hides ad boxes and skips any ad that still plays. YouTube changes often, so it may stop working.
 - **Skip YouTube sponsors** (Settings): uses the community SponsorBlock database to jump past sponsor reads, self-promotion and subscribe reminders. Data is CC BY-NC-SA 4.0 (non-commercial).
+- **Hidden sites**: Settings > Hidden from history lists sites that are never saved to history or suggestions (covers subdomains; adding one also deletes its existing history). Right-click any history item > Never Save This Site.
 - **History**: Cmd+Y. Searchable, grouped by day
 - **Downloads**: files WebKit can't display are saved to ~/Downloads. Cmd+Shift+J shows progress, Open and Show in Finder
 - **Find in page**: Cmd+F, Cmd+G / Cmd+Shift+G for next / previous, Esc to close
