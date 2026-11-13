@@ -376,6 +376,7 @@ struct Sidebar: View {
 struct SpaceHeader: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var spaceStore: SpaceStore
+    @AppStorage("tabLayout") private var tabLayout = "sidebar"
 
     var body: some View {
         let space = state.currentSpace
@@ -383,7 +384,12 @@ struct SpaceHeader: View {
             SpaceIcon(symbol: space.symbol).foregroundStyle(space.color.color)
             Text(space.name).font(.headline).lineLimit(1)
             Spacer(minLength: 0)
-            Button { state.toggleSidebar() } label: { Image(systemName: "sidebar.left") }
+            // Switch the whole layout to tabs across the top.
+            Button { tabLayout = "top" } label: { Image(systemName: "rectangle.topthird.inset.filled") }
+                .buttonStyle(.borderless)
+                .help("Show tabs across the top (⌥⌘\\)")
+            // Shrink the sidebar to its icon rail.
+            Button { state.toggleSidebar() } label: { Image(systemName: "chevron.left.2") }
                 .buttonStyle(.borderless)
                 .help("Shrink sidebar to icons (⌘\\)")
         }
@@ -717,11 +723,13 @@ struct CollapsedSidebar: View {
     @EnvironmentObject var state: BrowserState
     @EnvironmentObject var bookmarks: BookmarkStore
     @EnvironmentObject var spaceStore: SpaceStore
+    @AppStorage("tabLayout") private var tabLayout = "sidebar"
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 6) {
-                RailButton(symbol: "sidebar.left", help: "Expand sidebar (⌘\\)") { state.toggleSidebar() }
+                RailButton(symbol: "chevron.right.2", help: "Expand sidebar (⌘\\)") { state.toggleSidebar() }
+                RailButton(symbol: "rectangle.topthird.inset.filled", help: "Show tabs across the top (⌥⌘\\)") { tabLayout = "top" }
                 RailButton(symbol: "plus", help: "New Tab (⌘T)") { state.newTabAndFocus() }
             }
             .padding(.vertical, 10)

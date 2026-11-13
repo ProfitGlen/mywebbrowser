@@ -26,7 +26,7 @@ A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 | Key | Action |
 | --- | --- |
 | Cmd+T | New tab |
-| Cmd+\\ | Shrink / expand sidebar |
+| Cmd+\\ | Shrink / expand sidebar (also the « » button in the sidebar header) |
 | Opt+Cmd+\\ | Sidebar layout / top layout |
 | Cmd+W | Close tab |
 | Cmd+N / Cmd+Shift+N | New window / new private window |
