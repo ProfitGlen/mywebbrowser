@@ -55,6 +55,7 @@ struct SettingsView: View {
     @AppStorage("autoUpdate") private var autoUpdate = true
     @AppStorage("autoCollapseSidebar") private var autoCollapseSidebar = false
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
+    @AppStorage("iconOnlyTabs") private var iconOnlyTabs = false
     @AppStorage("keepSignedIn") private var keepSignedIn = true
     @ObservedObject private var hiddenSites = HiddenSitesStore.shared
     @State private var newHiddenSite = ""
@@ -86,6 +87,10 @@ struct SettingsView: View {
                     Text("Sidebar (vertical)").tag("sidebar")
                     Text("Across the top").tag("top")
                 }
+                Toggle("Show only icons on tabs (top layout)", isOn: $iconOnlyTabs)
+                Text("Shrinks each tab to just its site icon, as large as the tab bar allows. Hover a tab to see its title and a small close button.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Text("Across the top shows tabs in a strip above the address bar and bookmarks in a row below it. Switch any time with ⌥⌘\\.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

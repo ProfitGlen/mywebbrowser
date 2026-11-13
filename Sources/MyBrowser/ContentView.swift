@@ -1109,7 +1109,71 @@ struct TopTabItem: View {
     @State private var hovering = false
     @State private var dropTargeted = false
 
+    @AppStorage("iconOnlyTabs") private var iconOnly = false
+
     var body: some View {
+        if iconOnly { compactTab } else { fullTab }
+    }
+
+    /// Icon-only tab: the icon fills the tab bar height; the title is in the tooltip.
+    private var compactTab: some View {
+        ZStack(alignment: .topLeading) {
+            Group {
+                if tab.isLoading {
+                    ProgressView().controlSize(.regular)
+                } else if let icon = icons.image(for: tab.url?.host) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    Image(systemName: tab.isPinned ? "pin.fill" : "globe")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 22, height: 22)
+            .frame(width: 42, height: 28)
+            .contentShape(Rectangle())
+            .onTapGesture { state.select(tab) }
+            .draggable(tab.id.uuidString)
+            .dropDestination(for: String.self) { items, _ in
+                guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+                state.moveTab(id, onto: tab)
+                return true
+            } isTargeted: { dropTargeted = $0 }
+
+            // Small close badge in the corner on hover (the icon stays clickable to select the tab).
+            if hovering && !tab.isPinned {
+                Button { state.close(tab) } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .frame(width: 14, height: 14)
+                        .background(Circle().fill(Color.primary.opacity(0.2)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 1)
+                .padding(.top, 1)
+                .help("Close Tab")
+            }
+        }
+        .frame(width: 42, height: 28)
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(isSelected ? state.currentSpace.color.color.opacity(0.28)
+                      : hovering ? Color.primary.opacity(0.08) : .clear)
+        )
+        .overlay(alignment: .leading) {
+            if dropTargeted { Rectangle().fill(state.currentSpace.color.color).frame(width: 2) }
+        }
+        .onHover { hovering = $0 }
+        .help(tab.title)
+        .contextMenu { tabMenu }
+    }
+
+    private var fullTab: some View {
         ZStack(alignment: .leading) {
             // Icon and title: this part selects the tab, starts drags and accepts drops.
             HStack(spacing: 6) {
@@ -1169,7 +1233,10 @@ struct TopTabItem: View {
         }
         .onHover { hovering = $0 }
         .help(tab.title)
-        .contextMenu {
+        .contextMenu { tabMenu }
+    }
+
+    @ViewBuilder private var tabMenu: some View {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") { state.togglePin(tab) }
             Button("Bookmark This Page") { bookmarks.toggle(title: tab.title, url: tab.url) }
                 .disabled(tab.url == nil)
@@ -1184,7 +1251,6 @@ struct TopTabItem: View {
             }
             Divider()
             Button("Close Tab") { state.close(tab) }
-        }
     }
 }
 
