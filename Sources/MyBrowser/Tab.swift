@@ -180,6 +180,24 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
         return onCreatePopup?(configuration)?.webView
     }
 
+    /// File pickers (photo uploads on Facebook, attachments, etc.). WKWebView shows nothing unless we do.
+    func webView(_ webView: WKWebView,
+                 runOpenPanelWith parameters: WKOpenPanelParameters,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping ([URL]?) -> Void) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.canChooseDirectories = parameters.allowsDirectories
+        panel.canChooseFiles = true
+        if let window = webView.window {
+            panel.beginSheetModal(for: window) { response in
+                completionHandler(response == .OK ? panel.urls : nil)
+            }
+        } else {
+            completionHandler(panel.runModal() == .OK ? panel.urls : nil)
+        }
+    }
+
     func webViewDidClose(_ webView: WKWebView) {
         onClose?()
     }
