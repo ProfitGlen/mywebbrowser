@@ -57,6 +57,8 @@ struct SettingsView: View {
     @AppStorage("tabLayout") private var tabLayout = "sidebar"
     @AppStorage("iconOnlyTabs") private var iconOnlyTabs = false
     @AppStorage("keepSignedIn") private var keepSignedIn = true
+    @AppStorage("memorySaverMinutes") private var memorySaverMinutes = 30
+    @AppStorage("memorySaverProtectPinned") private var memorySaverProtectPinned = false
     @ObservedObject private var hiddenSites = HiddenSitesStore.shared
     @State private var newHiddenSite = ""
     @AppStorage("blockYouTubeAds") private var blockYouTubeAds = true
@@ -99,6 +101,20 @@ struct SettingsView: View {
             Section("Sidebar") {
                 Toggle("Shrink sidebar to icons automatically", isOn: $autoCollapseSidebar)
                 Text("Shrinks after you click a tab or bookmark in the sidebar, or click the page. Expand it again with ⌘\\ or the sidebar button.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Memory saver") {
+                Picker("Free memory from tabs unused for", selection: $memorySaverMinutes) {
+                    Text("Never").tag(0)
+                    Text("5 minutes").tag(5)
+                    Text("15 minutes").tag(15)
+                    Text("30 minutes").tag(30)
+                    Text("1 hour").tag(60)
+                }
+                Toggle("Leave pinned tabs alone", isOn: $memorySaverProtectPinned)
+                Text("Stops the page of a tab you haven't looked at for this long. The tab and its Space stay put, nothing is closed, and the page reloads when you click it. Tabs playing audio or video, and the tab you're on, are never touched. Unsaved form text and scroll position in a freed tab are lost.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -173,6 +189,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 900)
+        .frame(width: 480, height: 1020)
     }
 }

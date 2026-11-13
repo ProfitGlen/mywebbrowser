@@ -33,6 +33,24 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
 
     private var observations: [NSKeyValueObservation] = []
 
+    /// When you last looked at this tab (drives the memory saver).
+    var lastActive = Date()
+    /// True after the memory saver emptied the page; the tab keeps its title and icon and reloads when opened.
+    private(set) var isDiscarded = false
+
+    /// Frees the page's memory and web process, keeping the tab (title, icon, address) in place.
+    /// Returns false if the tab was left alone (loading, playing audio/video, or nothing to restore).
+    @discardableResult
+    func discard() -> Bool {
+        guard !isDiscarded, pendingURL == nil, !webView.isLoading,
+              webView.mediaPlaybackState != .playing,
+              let current = webView.url, current.scheme == "http" || current.scheme == "https" else { return false }
+        pendingURL = current
+        isDiscarded = true
+        webView.load(URLRequest(url: URL(string: "about:blank")!))
+        return true
+    }
+
     /// Called when a page opens a popup (window.open). Must return a tab built from the given configuration.
     var onCreatePopup: ((WKWebViewConfiguration) -> Tab?)?
     /// Called when the page closes itself (window.close), e.g. after a sign-in popup finishes.
@@ -89,11 +107,14 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
 
         observations = [
             webView.observe(\.title) { [weak self] web, _ in
-                guard let self else { return }
+                guard let self, !self.isDiscarded else { return }
                 if let t = web.title, !t.isEmpty { self.title = t }
                 else { self.title = web.url?.host ?? "New Tab" }
             },
-            webView.observe(\.url) { [weak self] web, _ in self?.url = web.url },
+            webView.observe(\.url) { [weak self] web, _ in
+                guard let self, !self.isDiscarded else { return }
+                self.url = web.url
+            },
             webView.observe(\.isLoading) { [weak self] web, _ in self?.isLoading = web.isLoading },
             webView.observe(\.estimatedProgress) { [weak self] web, _ in self?.progress = web.estimatedProgress },
             webView.observe(\.canGoBack) { [weak self] web, _ in self?.canGoBack = web.canGoBack },
@@ -103,14 +124,23 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
 
     func load(_ url: URL) {
         pendingURL = nil
+        isDiscarded = false
         webView.load(URLRequest(url: url))
     }
 
-    /// Loads a deferred (restored but not yet opened) tab.
+    /// Loads a deferred (restored but not yet opened) or memory-saved tab.
     func ensureLoaded() {
+        lastActive = Date()
         guard let url = pendingURL else { return }
         pendingURL = nil
+        isDiscarded = false
         webView.load(URLRequest(url: url))
+    }
+
+    /// Loads a restored tab that has never been opened, but leaves memory-saved tabs asleep.
+    func ensureLoadedIfNeverOpened() {
+        guard !isDiscarded else { return }
+        ensureLoaded()
     }
 
     func goBack() { webView.goBack() }
@@ -157,6 +187,7 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
     // MARK: WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard !isDiscarded, webView.url?.absoluteString != "about:blank" else { return }
         if let url = webView.url { onVisit?(webView.title ?? "", url) }
         loadFavicon()
     }

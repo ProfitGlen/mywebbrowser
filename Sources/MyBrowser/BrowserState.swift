@@ -84,6 +84,31 @@ final class BrowserState: ObservableObject {
             .dropFirst()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] spaces in self?.reconcile(spaces) }
+
+        // Memory saver: once a minute, empty tabs you haven't looked at for a while.
+        saverTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.runMemorySaver()
+        }
+    }
+
+    deinit { saverTimer?.invalidate() }
+
+    private var saverTimer: Timer?
+
+    /// Frees the memory of tabs unused for the chosen time. Tabs and Spaces stay exactly where
+    /// they are; a freed tab reloads when you click it. Never touches the tab you're on,
+    /// tabs playing audio/video, or (optionally) pinned tabs.
+    private func runMemorySaver() {
+        selected?.lastActive = Date()
+        let defaults = UserDefaults.standard
+        let minutes = defaults.object(forKey: "memorySaverMinutes") as? Int ?? 30
+        guard minutes > 0 else { return }
+        let protectPinned = defaults.bool(forKey: "memorySaverProtectPinned")
+        let cutoff = Date().addingTimeInterval(-Double(minutes) * 60)
+        for tab in tabs where tab.id != selectedID && tab.lastActive < cutoff {
+            if protectPinned && tab.isPinned { continue }
+            tab.discard()
+        }
     }
 
     // MARK: Tabs
@@ -187,7 +212,7 @@ final class BrowserState: ObservableObject {
         showFind = false
 
         let inSpace = tabs.filter { $0.spaceID == id }
-        inSpace.filter { $0.isPinned }.forEach { $0.ensureLoaded() }
+        inSpace.filter { $0.isPinned }.forEach { $0.ensureLoadedIfNeverOpened() }
 
         if let remembered = lastSelected[id], let tab = inSpace.first(where: { $0.id == remembered }) {
             select(tab)
