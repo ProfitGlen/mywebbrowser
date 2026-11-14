@@ -101,9 +101,11 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
     }
 
     init(configuration config: WKWebViewConfiguration, spaceID: UUID) {
-        webView = WKWebView(frame: .zero, configuration: config)
+        let web = MBWebView(frame: .zero, configuration: config)
+        webView = web
         self.spaceID = spaceID
         super.init()
+        web.onStartDownload = { [weak self] download in self?.onDownload?(download) }
 
         webView.allowsBackForwardNavigationGestures = true
         webView.navigationDelegate = self
