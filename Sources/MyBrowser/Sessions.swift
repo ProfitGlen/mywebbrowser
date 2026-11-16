@@ -22,8 +22,17 @@ final class SessionKeeper: NSObject, WKHTTPCookieStoreObserver {
         persistSessionCookies()
     }
 
+    private var pending: DispatchWorkItem?
+
+    /// Waits for cookie changes to settle before touching anything, so a sign-in in progress
+    /// (which sets and deletes short-lived cookies in quick succession) is never interfered with.
     func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
-        persistSessionCookies()
+        DispatchQueue.main.async {
+            self.pending?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.persistSessionCookies() }
+            self.pending = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: work)
+        }
     }
 
     private func persistSessionCookies() {
