@@ -50,7 +50,9 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
             if let playing = result as? Bool, playing { return }
             self.pendingURL = current
             self.isDiscarded = true
-            self.webView.load(URLRequest(url: URL(string: "about:blank")!))
+            // Empty page on the SAME site (not about:blank) so the site's per-tab login data
+            // (sessionStorage) survives and you stay signed in when the tab wakes up.
+            self.webView.loadHTMLString("<html><body></body></html>", baseURL: current)
         }
     }
 
