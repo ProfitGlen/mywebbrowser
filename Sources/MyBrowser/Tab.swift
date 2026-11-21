@@ -86,6 +86,7 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
         config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
         YouTubeAdBlocker.install(in: config.userContentController)
         SponsorBlock.install(in: config.userContentController)
+        AdBlocker.apply(to: config.userContentController)
         return config
     }
 
@@ -128,6 +129,19 @@ final class Tab: NSObject, ObservableObject, Identifiable, WKNavigationDelegate,
             webView.observe(\.canGoBack) { [weak self] web, _ in self?.canGoBack = web.canGoBack },
             webView.observe(\.canGoForward) { [weak self] web, _ in self?.canGoForward = web.canGoForward },
         ]
+
+        // Pick up the ad blocker when it finishes compiling or the setting changes.
+        adBlockObserver = NotificationCenter.default.addObserver(
+            forName: .adBlockerUpdate, object: nil, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            AdBlocker.apply(to: self.webView.configuration.userContentController)
+        }
+    }
+
+    private var adBlockObserver: NSObjectProtocol?
+
+    deinit {
+        if let adBlockObserver { NotificationCenter.default.removeObserver(adBlockObserver) }
     }
 
     func load(_ url: URL) {

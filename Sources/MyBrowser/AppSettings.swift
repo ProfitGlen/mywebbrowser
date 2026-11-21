@@ -62,6 +62,7 @@ struct SettingsView: View {
     @ObservedObject private var hiddenSites = HiddenSitesStore.shared
     @State private var newHiddenSite = ""
     @AppStorage("blockYouTubeAds") private var blockYouTubeAds = true
+    @AppStorage("blockAds") private var blockAds = true
     @AppStorage("skipSponsors") private var skipSponsors = true
     @EnvironmentObject var history: HistoryStore
     @EnvironmentObject var updater: Updater
@@ -129,6 +130,13 @@ struct SettingsView: View {
             }
 
             Section("Ads") {
+                Toggle("Block ads on websites", isOn: $blockAds)
+                    .onChange(of: blockAds) { _ in
+                        NotificationCenter.default.post(name: .adBlockerUpdate, object: nil)
+                    }
+                Text("Stops well-known ad networks and hides empty ad boxes. Best effort, so a few ads can still get through. Reload a page after changing this.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Block YouTube ads (experimental)", isOn: $blockYouTubeAds)
                 Text("Best effort. YouTube changes often, so this may stop working at times. Applies to tabs opened after you change it; reload open YouTube tabs.")
                     .font(.caption)
@@ -189,6 +197,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 1020)
+        .frame(width: 480, height: 1100)
     }
 }

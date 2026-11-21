@@ -9,6 +9,7 @@ A macOS browser built with Swift, SwiftUI and WebKit. No AI features.
 - **Tabs** in a vertical sidebar (new, close, switch, drag to reorder, loading spinner). Tabs, bookmarks and the icon rail show each site's own icon
 - **Icon-only tabs**: Settings > Layout > "Show only icons on tabs" shrinks top-layout tabs to just their site icon.
 - **Memory saver**: Settings > Memory saver frees the page memory of tabs unused for 5 min to 1 hour. Tabs and Spaces stay in place and reload when clicked; tabs playing media and the current tab are skipped.
+- **Ad blocker**: Settings > Ads > "Block ads on websites" stops well-known ad networks and hides empty ad boxes (best effort).
 - **Pinned tabs**: right-click a tab or press Opt+Cmd+P. They sit at the top of that space and come back on launch. Closing a pinned tab (right-click > Close Tab) unpins it.
 - **Address bar** takes a URL or a search term, with a **suggestions** dropdown from your bookmarks, the searches you typed before, and your history
 - Back / forward / reload / stop, swipe gestures, page load progress bar
